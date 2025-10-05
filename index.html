@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสำรวจเสาไฟฟ้า - PEA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .map-container {
+            height: 300px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        @media (max-width: 640px) {
+            .map-container {
+                height: 250px;
+            }
+        }
+        .survey-card {
+            background: linear-gradient(135deg, #0ea5e9 0%, #10b981 100%);
+        }
+        .pole-icon {
+            font-size: 2rem;
+        }
+        .form-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-green-50 min-h-screen">
+    <!-- Header -->
+    <div class="survey-card text-white p-4 shadow-lg">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold">⚡ ระบบสำรวจเสาไฟฟ้า</h1>
+                <p class="text-blue-100 text-sm">การไฟฟ้าส่วนภูมิภาค (PEA)</p>
+            </div>
+            <div class="text-right">
+                <div class="pole-icon">🗼</div>
+                <div class="text-xs">GIS Survey</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 max-w-md">
+        <!-- Survey Info Card -->
+        <div class="form-section rounded-xl p-4 mb-4 shadow-lg border border-white/20">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                📋 ข้อมูลการสำรวจ
+            </h2>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้รับผิดชอบ</label>
+                    <input type="text" id="responsible" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="กรอกชื่อผู้สำรวจ" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อโครงการ/พื้นที่</label>
+                    <input type="text" id="projectName" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="ระบุชื่อโครงการหรือพื้นที่สำรวจ" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="form-section rounded-xl p-4 mb-4 shadow-lg border border-white/20">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                🗺️ แผนที่สำรวจ
+            </h2>
+            
+            <div id="map" class="map-container mb-3"></div>
+            
+            <div class="flex justify-between items-center text-sm text-gray-600 mb-3">
+                <span>📍 จุดที่ปักหมุด: <span id="markerCount" class="font-semibold text-blue-600">0</span></span>
+                <button id="clearMarkers" class="bg-red-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-red-600 transition-colors">
+                    🗑️ ล้างจุด
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-2">
+                <button id="addCurrentLocation" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white p-3 rounded-lg font-semibold shadow-md hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105 flex items-center justify-center">
+                    📍 ปักหมุดตำแหน่งปัจจุบัน
+                </button>
+                <div class="text-xs text-gray-500 text-center">
+                    💡 แตะปุ่มเพื่อปักหมุดตำแหน่งที่คุณยืนอยู่
+                </div>
+            </div>
+        </div>
+
+        <!-- Pole Data Form -->
+        <div class="form-section rounded-xl p-4 mb-4 shadow-lg border border-white/20">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                ⚡ ข้อมูลเสาไฟฟ้า
+            </h2>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ประเภทเสาไฟฟ้า</label>
+                    <select id="poleType" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">เลือกประเภทเสา</option>
+                        <option value="แรงสูง">⚡ แรงสูง (High Voltage)</option>
+                        <option value="แรงกลาง">🔌 แรงกลาง (Medium Voltage)</option>
+                        <option value="แรงต่ำ">💡 แรงต่ำ (Low Voltage)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">การติดตั้งหม้อแปลง</label>
+                    <select id="transformer" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="ไม่มี">ไม่มี</option>
+                        <option value="มี">มี</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">สายยึดโยง</label>
+                    <select id="guyWire" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="ไม่มี">ไม่มี</option>
+                        <option value="มี">มี</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รูปภาพ</label>
+                    <input type="file" id="imageFile" accept="image/*" capture="environment" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <div class="text-xs text-gray-500 mt-1">📸 แตะเพื่อถ่ายรูปหรือเลือกไฟล์</div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">หมายเหตุ</label>
+                    <textarea id="notes" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="บันทึกข้อมูลเพิ่มเติม..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="form-section rounded-xl p-4 mb-4 shadow-lg border border-white/20">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                📊 สรุปข้อมูล
+            </h2>
+            
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="bg-blue-50 p-3 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="totalPoints">0</div>
+                    <div class="text-gray-600">จุดทั้งหมด</div>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg text-center">
+                    <div class="text-2xl font-bold text-green-600" id="savedPoints">0</div>
+                    <div class="text-gray-600">บันทึกแล้ว</div>
+                </div>
+            </div>
+
+            <div class="mt-3 space-y-2 text-xs">
+                <div class="flex justify-between">
+                    <span>⚡ แรงสูง:</span>
+                    <span id="highVoltage" class="font-semibold">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>🔌 แรงกลาง:</span>
+                    <span id="mediumVoltage" class="font-semibold">0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>💡 แรงต่ำ:</span>
+                    <span id="lowVoltage" class="font-semibold">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="space-y-3">
+            <button id="saveData" class="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 rounded-xl font-semibold shadow-lg hover:from-blue-600 hover:to-green-600 transition-all transform hover:scale-105">
+                💾 บันทึกข้อมูลจุดปัจจุบัน
+            </button>
+            
+            <button id="exportData" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white p-4 rounded-xl font-semibold shadow-lg hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105">
+                📤 ส่งข้อมูลทั้งหมดไป Google Sheets
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-6 text-xs text-gray-500">
+            <p>🔧 ระบบสำรวจเสาไฟฟ้าเพื่อใช้งานใน GIS</p>
+            <p>การไฟฟ้าส่วนภูมิภาค (PEA)</p>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZB9R8J8lToURW_BwXhfLIRAAbK0jI90tOrwhxLuoWqEk4lKzDqxKjtMxkwU2NeHObwQ/exec';
+        const SHEET_ID = '1kf_xzfTOx98T5f_9grznU3U0U1MqA87lt_Dl2hGSyAw';
+        const FOLDER_ID = '1AmI2prj8Bma9gVBb0oLq7uwkr2D1aERZ';
+
+        // Global variables
+        let map;
+        let markers = [];
+        let surveyData = [];
+        let currentLocation = null;
+
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([13.7563, 100.5018], 10); // Bangkok center
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Get user location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    currentLocation = [position.coords.latitude, position.coords.longitude];
+                    map.setView(currentLocation, 15);
+                    
+                    // Add current location marker
+                    L.marker(currentLocation)
+                        .addTo(map)
+                        .bindPopup('📍 ตำแหน่งปัจจุบัน')
+                        .openPopup();
+                });
+            }
+
+            // Add click event to map
+            map.on('click', function(e) {
+                addMarker(e.latlng);
+            });
+        }
+
+        // Add marker to map
+        function addMarker(latlng) {
+            const marker = L.marker([latlng.lat, latlng.lng])
+                .addTo(map)
+                .bindPopup(`📍 จุดที่ ${markers.length + 1}<br>Lat: ${latlng.lat.toFixed(6)}<br>Lng: ${latlng.lng.toFixed(6)}`);
+            
+            markers.push({
+                marker: marker,
+                lat: latlng.lat,
+                lng: latlng.lng,
+                id: Date.now()
+            });
+            
+            updateMarkerCount();
+        }
+
+        // Add current location marker
+        function addCurrentLocationMarker() {
+            if (navigator.geolocation) {
+                // Show loading
+                Swal.fire({
+                    title: 'กำลังหาตำแหน่ง...',
+                    text: 'กรุณารอสักครู่',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        const accuracy = position.coords.accuracy;
+                        
+                        // Close loading
+                        Swal.close();
+                        
+                        // Add marker at current location
+                        const marker = L.marker([lat, lng])
+                            .addTo(map)
+                            .bindPopup(`📍 จุดที่ ${markers.length + 1}<br>Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}<br>ความแม่นยำ: ${accuracy.toFixed(0)}m`)
+                            .openPopup();
+                        
+                        markers.push({
+                            marker: marker,
+                            lat: lat,
+                            lng: lng,
+                            id: Date.now(),
+                            accuracy: accuracy
+                        });
+                        
+                        // Center map on new location
+                        map.setView([lat, lng], 18);
+                        
+                        updateMarkerCount();
+                        
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'ปักหมุดสำเร็จ!',
+                            text: `เพิ่มจุดที่ ${markers.length} แล้ว (ความแม่นยำ: ${accuracy.toFixed(0)}m)`,
+                            timer: 2000,
+                            showConfirmButton: false,
+                            toast: true,
+                            position: 'top-end'
+                        });
+                    },
+                    function(error) {
+                        Swal.close();
+                        let errorMessage = 'ไม่สามารถหาตำแหน่งได้';
+                        
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = 'กรุณาอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = 'ไม่สามารถหาตำแหน่งได้ กรุณาลองใหม่';
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = 'หาตำแหน่งใช้เวลานานเกินไป กรุณาลองใหม่';
+                                break;
+                        }
+                        
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'เกิดข้อผิดพลาด',
+                            text: errorMessage,
+                            confirmButtonColor: '#ef4444'
+                        });
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'ไม่รองรับ',
+                    text: 'เบราว์เซอร์ของคุณไม่รองรับการหาตำแหน่ง',
+                    confirmButtonColor: '#ef4444'
+                });
+            }
+        }
+
+        // Update marker count display
+        function updateMarkerCount() {
+            document.getElementById('markerCount').textContent = markers.length;
+            document.getElementById('totalPoints').textContent = markers.length;
+        }
+
+        // Clear all markers
+        function clearMarkers() {
+            markers.forEach(item => {
+                map.removeLayer(item.marker);
+            });
+            markers = [];
+            updateMarkerCount();
+            updateSummary();
+        }
+
+        // Convert file to base64
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Save current point data
+        async function saveCurrentPoint() {
+            const responsible = document.getElementById('responsible').value;
+            const projectName = document.getElementById('projectName').value;
+            const poleType = document.getElementById('poleType').value;
+            const transformer = document.getElementById('transformer').value;
+            const guyWire = document.getElementById('guyWire').value;
+            const notes = document.getElementById('notes').value;
+            const imageFile = document.getElementById('imageFile').files[0];
+
+            if (!responsible || !projectName) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ข้อมูลไม่ครบ',
+                    text: 'กรุณากรอกชื่อผู้รับผิดชอบและชื่อโครงการ',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            if (markers.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่มีจุดสำรวจ',
+                    text: 'กรุณาปักหมุดบนแผนที่อย่างน้อย 1 จุด',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            try {
+                let imageData = null;
+                let fileName = null;
+                let mimeType = null;
+
+                if (imageFile) {
+                    imageData = await fileToBase64(imageFile);
+                    fileName = imageFile.name;
+                    mimeType = imageFile.type;
+                }
+
+                // Save data for each marker
+                for (let i = 0; i < markers.length; i++) {
+                    const markerData = markers[i];
+                    const pointData = {
+                        responsible,
+                        projectName,
+                        pointNumber: i + 1,
+                        latitude: markerData.lat,
+                        longitude: markerData.lng,
+                        poleType,
+                        transformer,
+                        guyWire,
+                        notes,
+                        timestamp: new Date().toLocaleString('th-TH'),
+                        imageData,
+                        fileName,
+                        mimeType
+                    };
+                    
+                    surveyData.push(pointData);
+                }
+
+                // Clear form
+                document.getElementById('poleType').value = '';
+                document.getElementById('transformer').value = 'ไม่มี';
+                document.getElementById('guyWire').value = 'ไม่มี';
+                document.getElementById('notes').value = '';
+                document.getElementById('imageFile').value = '';
+
+                // Clear markers
+                clearMarkers();
+
+                updateSummary();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ!',
+                    text: `บันทึกข้อมูล ${markers.length || surveyData.length} จุดเรียบร้อยแล้ว`,
+                    confirmButtonColor: '#10b981'
+                });
+
+            } catch (error) {
+                console.error('Error saving data:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+                    confirmButtonColor: '#ef4444'
+                });
+            }
+        }
+
+        // Export data to Google Sheets
+        async function exportToGoogleSheets() {
+            if (surveyData.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่มีข้อมูล',
+                    text: 'กรุณาบันทึกข้อมูลจุดสำรวจก่อน',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            // Show loading
+            Swal.fire({
+                title: 'กำลังส่งข้อมูล...',
+                text: 'กรุณารอสักครู่',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                const responsible = document.getElementById('responsible').value;
+                
+                for (const data of surveyData) {
+                    const params = new URLSearchParams({
+                        action: 'saveData',
+                        sheetId: SHEET_ID,
+                        folderId: FOLDER_ID,
+                        responsible: data.responsible,
+                        projectName: data.projectName,
+                        pointNumber: data.pointNumber,
+                        latitude: data.latitude,
+                        longitude: data.longitude,
+                        poleType: data.poleType,
+                        transformer: data.transformer,
+                        guyWire: data.guyWire,
+                        notes: data.notes,
+                        timestamp: data.timestamp
+                    });
+
+                    if (data.imageData) {
+                        params.append('imageData', data.imageData);
+                        params.append('fileName', data.fileName);
+                        params.append('mimeType', data.mimeType);
+                    }
+
+                    const response = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: params.toString()
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                }
+
+                // Clear survey data after successful export
+                surveyData = [];
+                updateSummary();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'ส่งข้อมูลสำเร็จ!',
+                    text: 'ข้อมูลถูกส่งไป Google Sheets เรียบร้อยแล้ว',
+                    confirmButtonColor: '#10b981'
+                });
+
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่',
+                    confirmButtonColor: '#ef4444'
+                });
+            }
+        }
+
+        // Update summary statistics
+        function updateSummary() {
+            document.getElementById('savedPoints').textContent = surveyData.length;
+            
+            const highVoltage = surveyData.filter(d => d.poleType === 'แรงสูง').length;
+            const mediumVoltage = surveyData.filter(d => d.poleType === 'แรงกลาง').length;
+            const lowVoltage = surveyData.filter(d => d.poleType === 'แรงต่ำ').length;
+            
+            document.getElementById('highVoltage').textContent = highVoltage;
+            document.getElementById('mediumVoltage').textContent = mediumVoltage;
+            document.getElementById('lowVoltage').textContent = lowVoltage;
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            
+            document.getElementById('clearMarkers').addEventListener('click', clearMarkers);
+            document.getElementById('addCurrentLocation').addEventListener('click', addCurrentLocationMarker);
+            document.getElementById('saveData').addEventListener('click', saveCurrentPoint);
+            document.getElementById('exportData').addEventListener('click', exportToGoogleSheets);
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989b3531b6d6a1c2',t:'MTc1OTY0OTM2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
