@@ -94,6 +94,17 @@
             </div>
         </div>
 
+        <!-- Distance Info -->
+        <div id="distanceInfo" class="form-section rounded-xl p-4 mb-4 shadow-lg border border-white/20" style="display: none;">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+                📏 ระยะทาง
+            </h2>
+            <div class="bg-yellow-50 p-3 rounded-lg text-center">
+                <div class="text-2xl font-bold text-yellow-600" id="distanceValue">0</div>
+                <div class="text-gray-600 text-sm">เมตร จากจุดล่าสุด</div>
+            </div>
+        </div>
+
         <!-- Pole Data Form -->
         <div class="form-section rounded-xl p-4 mb-4 shadow-lg border border-white/20">
             <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center">
@@ -175,13 +186,22 @@
 
         <!-- Action Buttons -->
         <div class="space-y-3">
-            <button id="saveData" class="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 rounded-xl font-semibold shadow-lg hover:from-blue-600 hover:to-green-600 transition-all transform hover:scale-105">
-                💾 บันทึกข้อมูลจุดปัจจุบัน
+            <button id="addPointData" class="w-full bg-gradient-to-r from-blue-500 to-green-500 text-white p-4 rounded-xl font-semibold shadow-lg hover:from-blue-600 hover:to-green-600 transition-all transform hover:scale-105">
+                ➕ เพิ่มจุดสำรวจ
             </button>
             
-            <button id="exportData" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white p-4 rounded-xl font-semibold shadow-lg hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105">
-                📤 ส่งข้อมูลทั้งหมดไป Google Sheets
+            <button id="finishSurvey" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white p-4 rounded-xl font-semibold shadow-lg hover:from-green-600 hover:to-blue-600 transition-all transform hover:scale-105" style="display: none;">
+                ✅ เสร็จสิ้นการสำรวจ
             </button>
+            
+            <div class="grid grid-cols-2 gap-3" id="exportButtons" style="display: none;">
+                <button id="exportGoogleSheets" class="bg-green-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-green-700 transition-all">
+                    📊 Google Sheets
+                </button>
+                <button id="exportKML" class="bg-blue-600 text-white p-3 rounded-xl font-semibold shadow-lg hover:bg-blue-700 transition-all">
+                    🗺️ ไฟล์ KML
+                </button>
+            </div>
         </div>
 
         <!-- Footer -->
@@ -202,6 +222,7 @@
         let markers = [];
         let surveyData = [];
         let currentLocation = null;
+        let lastMarkerPosition = null;
 
         // Initialize map
         function initMap() {
@@ -231,8 +252,38 @@
             });
         }
 
+        // Calculate distance between two points (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Update distance display
+        function updateDistanceDisplay(lat, lng) {
+            if (lastMarkerPosition) {
+                const distance = calculateDistance(
+                    lastMarkerPosition.lat, 
+                    lastMarkerPosition.lng, 
+                    lat, 
+                    lng
+                );
+                
+                document.getElementById('distanceValue').textContent = Math.round(distance);
+                document.getElementById('distanceInfo').style.display = 'block';
+            }
+        }
+
         // Add marker to map
         function addMarker(latlng) {
+            // Update distance display before adding marker
+            updateDistanceDisplay(latlng.lat, latlng.lng);
+            
             const marker = L.marker([latlng.lat, latlng.lng])
                 .addTo(map)
                 .bindPopup(`📍 จุดที่ ${markers.length + 1}<br>Lat: ${latlng.lat.toFixed(6)}<br>Lng: ${latlng.lng.toFixed(6)}`);
@@ -243,6 +294,9 @@
                 lng: latlng.lng,
                 id: Date.now()
             });
+            
+            // Update last marker position
+            lastMarkerPosition = { lat: latlng.lat, lng: latlng.lng };
             
             updateMarkerCount();
         }
@@ -269,6 +323,9 @@
                         // Close loading
                         Swal.close();
                         
+                        // Update distance display before adding marker
+                        updateDistanceDisplay(lat, lng);
+                        
                         // Add marker at current location
                         const marker = L.marker([lat, lng])
                             .addTo(map)
@@ -282,6 +339,9 @@
                             id: Date.now(),
                             accuracy: accuracy
                         });
+                        
+                        // Update last marker position
+                        lastMarkerPosition = { lat: lat, lng: lng };
                         
                         // Center map on new location
                         map.setView([lat, lng], 18);
@@ -350,6 +410,8 @@
                 map.removeLayer(item.marker);
             });
             markers = [];
+            lastMarkerPosition = null;
+            document.getElementById('distanceInfo').style.display = 'none';
             updateMarkerCount();
             updateSummary();
         }
@@ -364,8 +426,8 @@
             });
         }
 
-        // Save current point data
-        async function saveCurrentPoint() {
+        // Add point data (new flow)
+        async function addPointData() {
             const responsible = document.getElementById('responsible').value;
             const projectName = document.getElementById('projectName').value;
             const poleType = document.getElementById('poleType').value;
@@ -411,7 +473,7 @@
                     const pointData = {
                         responsible,
                         projectName,
-                        pointNumber: i + 1,
+                        pointNumber: surveyData.length + i + 1,
                         latitude: markerData.lat,
                         longitude: markerData.lng,
                         poleType,
@@ -434,20 +496,28 @@
                 document.getElementById('notes').value = '';
                 document.getElementById('imageFile').value = '';
 
-                // Clear markers
-                clearMarkers();
+                // Clear markers but keep last position for distance calculation
+                markers.forEach(item => {
+                    map.removeLayer(item.marker);
+                });
+                markers = [];
+                document.getElementById('distanceInfo').style.display = 'none';
 
+                updateMarkerCount();
                 updateSummary();
+
+                // Show finish survey button
+                document.getElementById('finishSurvey').style.display = 'block';
 
                 Swal.fire({
                     icon: 'success',
-                    title: 'บันทึกสำเร็จ!',
-                    text: `บันทึกข้อมูล ${markers.length || surveyData.length} จุดเรียบร้อยแล้ว`,
+                    title: 'เพิ่มจุดสำเร็จ!',
+                    text: `บันทึกข้อมูลจุดสำรวจแล้ว ${surveyData.length} จุด`,
                     confirmButtonColor: '#10b981'
                 });
 
             } catch (error) {
-                console.error('Error saving data:', error);
+                console.error('Error adding point data:', error);
                 Swal.fire({
                     icon: 'error',
                     title: 'เกิดข้อผิดพลาด',
@@ -457,13 +527,37 @@
             }
         }
 
-        // Export data to Google Sheets
+        // Finish survey
+        function finishSurvey() {
+            if (surveyData.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่มีข้อมูล',
+                    text: 'กรุณาเพิ่มจุดสำรวจอย่างน้อย 1 จุด',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'เสร็จสิ้นการสำรวจ!',
+                text: `สำรวจเสร็จสิ้น รวม ${surveyData.length} จุด`,
+                confirmButtonColor: '#10b981'
+            });
+
+            // Show export buttons
+            document.getElementById('exportButtons').style.display = 'grid';
+            document.getElementById('finishSurvey').style.display = 'none';
+        }
+
+        // Export to Google Sheets
         async function exportToGoogleSheets() {
             if (surveyData.length === 0) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'ไม่มีข้อมูล',
-                    text: 'กรุณาบันทึกข้อมูลจุดสำรวจก่อน',
+                    text: 'กรุณาเพิ่มจุดสำรวจก่อน',
                     confirmButtonColor: '#3b82f6'
                 });
                 return;
@@ -480,8 +574,6 @@
             });
 
             try {
-                const responsible = document.getElementById('responsible').value;
-                
                 for (const data of surveyData) {
                     const params = new URLSearchParams({
                         action: 'saveData',
@@ -518,10 +610,6 @@
                     }
                 }
 
-                // Clear survey data after successful export
-                surveyData = [];
-                updateSummary();
-
                 Swal.fire({
                     icon: 'success',
                     title: 'ส่งข้อมูลสำเร็จ!',
@@ -538,6 +626,100 @@
                     confirmButtonColor: '#ef4444'
                 });
             }
+        }
+
+        // Export to KML
+        function exportToKML() {
+            if (surveyData.length === 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'ไม่มีข้อมูล',
+                    text: 'กรุณาเพิ่มจุดสำรวจก่อน',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return;
+            }
+
+            const responsible = document.getElementById('responsible').value;
+            const projectName = document.getElementById('projectName').value;
+
+            // Create KML content
+            let kmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>การสำรวจเสาไฟฟ้า - ${projectName}</name>
+    <description>ข้อมูลการสำรวจโดย ${responsible} เมื่อ ${new Date().toLocaleString('th-TH')}</description>
+    
+    <!-- Styles -->
+    <Style id="poleHighVoltage">
+      <IconStyle>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/red-circle.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="poleMediumVoltage">
+      <IconStyle>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/ylw-circle.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    <Style id="poleLowVoltage">
+      <IconStyle>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/grn-circle.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+    
+`;
+
+            // Add placemarks for each survey point
+            surveyData.forEach((point, index) => {
+                let styleId = 'poleLowVoltage';
+                if (point.poleType === 'แรงสูง') styleId = 'poleHighVoltage';
+                else if (point.poleType === 'แรงกลาง') styleId = 'poleMediumVoltage';
+
+                kmlContent += `    <Placemark>
+      <name>จุดที่ ${point.pointNumber} - ${point.poleType}</name>
+      <description><![CDATA[
+        <b>ประเภทเสา:</b> ${point.poleType}<br/>
+        <b>หม้อแปลง:</b> ${point.transformer}<br/>
+        <b>สายยึดโยง:</b> ${point.guyWire}<br/>
+        <b>หมายเหตุ:</b> ${point.notes}<br/>
+        <b>ผู้สำรวจ:</b> ${point.responsible}<br/>
+        <b>วันที่:</b> ${point.timestamp}<br/>
+        <b>พิกัด:</b> ${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}
+      ]]></description>
+      <styleUrl>#${styleId}</styleUrl>
+      <Point>
+        <coordinates>${point.longitude},${point.latitude},0</coordinates>
+      </Point>
+    </Placemark>
+`;
+            });
+
+            kmlContent += `  </Document>
+</kml>`;
+
+            // Create and download file
+            const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `survey_${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.kml`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            Swal.fire({
+                icon: 'success',
+                title: 'ส่งออกไฟล์ KML สำเร็จ!',
+                text: 'ไฟล์ KML ถูกดาวน์โหลดแล้ว สามารถนำไปใช้ใน GIS ได้',
+                confirmButtonColor: '#10b981'
+            });
         }
 
         // Update summary statistics
@@ -559,9 +741,11 @@
             
             document.getElementById('clearMarkers').addEventListener('click', clearMarkers);
             document.getElementById('addCurrentLocation').addEventListener('click', addCurrentLocationMarker);
-            document.getElementById('saveData').addEventListener('click', saveCurrentPoint);
-            document.getElementById('exportData').addEventListener('click', exportToGoogleSheets);
+            document.getElementById('addPointData').addEventListener('click', addPointData);
+            document.getElementById('finishSurvey').addEventListener('click', finishSurvey);
+            document.getElementById('exportGoogleSheets').addEventListener('click', exportToGoogleSheets);
+            document.getElementById('exportKML').addEventListener('click', exportToKML);
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989b3531b6d6a1c2',t:'MTc1OTY0OTM2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989b75df70aba1c2',t:'MTc1OTY1MjAxNC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
