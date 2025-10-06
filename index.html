@@ -2,485 +2,735 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบสำรวจเสาไฟฟ้า PEA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             box-sizing: border-box;
         }
         .map-container {
-            height: 35vh;
-            min-height: 200px;
+            height: calc(100vh - 120px);
+            position: relative;
         }
-        @media (max-width: 640px) {
-            .map-container {
-                height: 30vh;
-                min-height: 180px;
-            }
-        }
-        .distance-display {
+        .distance-info {
             position: absolute;
             top: 10px;
             right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
             z-index: 1000;
-            background: rgba(0,0,0,0.8);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .modal {
+            z-index: 2000;
+        }
+        .modal-backdrop {
+            z-index: 1999;
+        }
+        .numbered-marker {
+            background: #3b82f6;
             color: white;
-            padding: 6px 10px;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .nav-tab {
+            transition: all 0.3s ease;
+        }
+        .nav-tab.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .card-gradient {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+        .connection-status {
+            position: fixed;
+            top: 70px;
+            right: 10px;
+            z-index: 1000;
+            padding: 8px 12px;
             border-radius: 6px;
             font-size: 12px;
             font-weight: bold;
         }
-        .survey-point {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-            border: 3px solid white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        .status-online {
+            background: #10b981;
+            color: white;
         }
-        .current-location {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            animation: pulse 2s infinite;
+        .status-offline {
+            background: #ef4444;
+            color: white;
         }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-        
-        /* Mobile optimizations */
-        @media (max-width: 640px) {
-            .mobile-text-sm { font-size: 0.75rem; }
-            .mobile-p-2 { padding: 0.5rem; }
-            .mobile-p-3 { padding: 0.75rem; }
-            .mobile-gap-2 { gap: 0.5rem; }
-            .mobile-h-8 { height: 2rem; }
-        }
-        
-        /* Modal improvements */
-        .modal-content {
-            max-height: 85vh;
-            overflow-y: auto;
-        }
-        
-        /* Ensure modal is above everything */
-        .modal-overlay {
-            z-index: 10000 !important;
-        }
-        
-        /* Leaflet map z-index fix */
-        .leaflet-container {
-            z-index: 1 !important;
-        }
-        
-        .leaflet-control-container {
-            z-index: 1000 !important;
+        .surveyor-card {
+            min-width: 200px;
+            max-width: 250px;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <!-- Header -->
-    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-3 sm:p-4 shadow-lg">
-        <div class="flex items-center justify-between">
-            <div>
-                <h1 class="text-base sm:text-lg font-bold">ระบบสำรวจเสาไฟฟ้า</h1>
-                <p class="text-blue-100 text-xs sm:text-sm">การไฟฟ้าส่วนภูมิภาค (PEA)</p>
-            </div>
-            <div class="text-right">
-                <div class="text-xs sm:text-sm">จุดสำรวจ: <span id="pointCount" class="font-bold">0</span></div>
-                <div class="text-xs text-blue-100" id="currentTime"></div>
-            </div>
-        </div>
+<body class="bg-gray-50">
+    <!-- Connection Status -->
+    <div id="connection-status" class="connection-status status-offline hidden">
+        <i class="fas fa-wifi mr-1"></i>
+        <span id="status-text">กำลังเชื่อมต่อ...</span>
     </div>
 
-    <!-- Map Container -->
-    <div class="relative">
-        <div id="map" class="map-container"></div>
-        <div id="distanceDisplay" class="distance-display" style="display: none;">
-            ระยะทาง: <span id="distanceText">0</span> เมตร
-        </div>
-    </div>
-
-    <!-- Control Panel -->
-    <div class="p-3 sm:p-4 space-y-3 sm:space-y-4">
-        <!-- Survey Info -->
-        <div class="bg-white rounded-lg p-3 sm:p-4 shadow-md">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div>
-                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">ชื่อผู้สำรวจ</label>
-                    <input type="text" id="surveyorName" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm" placeholder="กรอกชื่อผู้สำรวจ">
-                </div>
-                <div>
-                    <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-1">โครงการ</label>
-                    <input type="text" id="projectName" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm" placeholder="ชื่อโครงการ">
-                </div>
-            </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-            <button id="addPointBtn" class="bg-gradient-to-r from-green-500 to-green-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200">
-                <i class="fas fa-map-marker-alt mr-1 sm:mr-2"></i>ปักหมุดจุดสำรวจ
-            </button>
-            <button id="getCurrentLocationBtn" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200">
-                <i class="fas fa-crosshairs mr-1 sm:mr-2"></i>ตำแหน่งปัจจุบัน
-            </button>
-        </div>
-
-        <!-- Survey Points List -->
-        <div class="bg-white rounded-lg shadow-md">
-            <div class="p-3 sm:p-4 border-b border-gray-200">
-                <h3 class="font-medium text-gray-800 text-sm sm:text-base">รายการจุดสำรวจ</h3>
-            </div>
-            <div id="pointsList" class="max-h-32 sm:max-h-40 overflow-y-auto">
-                <div class="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">ยังไม่มีจุดสำรวจ</div>
-            </div>
-        </div>
-
-        <!-- Export & Save Buttons -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-            <button id="exportKmlBtn" class="bg-gradient-to-r from-purple-500 to-purple-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200" disabled>
-                <i class="fas fa-download mr-1 sm:mr-2"></i>Export KML
-            </button>
-            <button id="saveAllBtn" class="bg-gradient-to-r from-orange-500 to-orange-600 text-white py-2 sm:py-3 px-3 sm:px-4 rounded-lg font-medium text-xs sm:text-sm shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200" disabled>
-                <i class="fas fa-save mr-1 sm:mr-2"></i>บันทึกทั้งหมด
-            </button>
-        </div>
-    </div>
-
-    <!-- Survey Detail Modal -->
-    <div id="surveyModal" class="fixed inset-0 bg-black bg-opacity-50 modal-overlay hidden">
-        <div class="flex items-start justify-center min-h-screen p-2 sm:p-4 pt-4 sm:pt-8">
-            <div class="bg-white rounded-lg w-full max-w-md modal-content">
-                <div class="p-3 sm:p-4 border-b border-gray-200 sticky top-0 bg-white rounded-t-lg">
-                    <div class="flex justify-between items-center">
-                        <div>
-                            <h3 class="text-base sm:text-lg font-medium">รายละเอียดจุดสำรวจ</h3>
-                            <p class="text-xs sm:text-sm text-gray-600">พิกัด: <span id="modalCoords"></span></p>
-                        </div>
-                        <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 text-xl">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="p-3 sm:p-4 space-y-3 sm:space-y-4">
-                    <!-- ประเภทเสา -->
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">ประเภทเสา</label>
-                        <select id="poleType" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm">
-                            <option value="">เลือกประเภทเสา</option>
-                        </select>
-                    </div>
-
-                    <!-- การติดตั้งอุปกรณ์ -->
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">การติดตั้งอุปกรณ์</label>
-                        <select id="equipment" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm">
-                            <option value="">เลือกอุปกรณ์</option>
-                        </select>
-                    </div>
-
-                    <!-- หัวเสา -->
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">หัวเสา</label>
-                        <select id="poleHead" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm">
-                            <option value="">เลือกหัวเสา</option>
-                        </select>
-                    </div>
-
-                    <!-- สายยึดโยง&เทโคน -->
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">สายยึดโยง&เทโคน</label>
-                        <select id="wireSupport" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm">
-                            <option value="">เลือกสายยึดโยง</option>
-                        </select>
-                    </div>
-
-                    <!-- รูปภาพ -->
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">รูปภาพ</label>
-                        <input type="file" id="imageUpload" accept="image/*" multiple class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm">
-                        <div id="imagePreview" class="mt-2 grid grid-cols-2 gap-2"></div>
-                    </div>
-
-                    <!-- หมายเหตุ -->
-                    <div>
-                        <label class="block text-xs sm:text-sm font-medium text-gray-700 mb-2">หมายเหตุ</label>
-                        <textarea id="notes" rows="3" class="w-full px-2 sm:px-3 py-2 border border-gray-300 rounded-md text-xs sm:text-sm" placeholder="หมายเหตุเพิ่มเติม"></textarea>
-                    </div>
-                </div>
-
-                <div class="p-3 sm:p-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 sticky bottom-0 bg-white rounded-b-lg">
-                    <button id="addAnotherPointBtn" class="bg-gradient-to-r from-green-500 to-green-600 text-white py-2 px-3 sm:px-4 rounded-md font-medium text-xs sm:text-sm">
-                        <i class="fas fa-plus mr-1"></i>เพิ่มจุดสำรวจ
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="px-4 py-3">
+            <div class="flex justify-between items-center">
+                <h1 class="text-lg font-bold text-gray-800">
+                    <i class="fas fa-bolt text-blue-600 mr-2"></i>
+                    ระบบสำรวจเสาไฟฟ้า PEA
+                </h1>
+                <div class="flex space-x-2">
+                    <button onclick="showTab('dashboard')" class="nav-tab px-3 py-2 rounded-lg text-sm font-medium" id="tab-dashboard">
+                        <i class="fas fa-chart-pie mr-1"></i>แดชบอร์ด
                     </button>
-                    <button id="finishSurveyBtn" class="bg-gradient-to-r from-blue-500 to-blue-600 text-white py-2 px-3 sm:px-4 rounded-md font-medium text-xs sm:text-sm">
-                        <i class="fas fa-check mr-1"></i>เสร็จสิ้นการสำรวจ
+                    <button onclick="showTab('survey')" class="nav-tab px-3 py-2 rounded-lg text-sm font-medium active" id="tab-survey">
+                        <i class="fas fa-map-marker-alt mr-1"></i>สำรวจ
                     </button>
                 </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Dashboard Tab -->
+    <div id="dashboard-tab" class="hidden p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <div class="card-gradient p-4 rounded-lg shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">โครงการทั้งหมด</p>
+                        <p class="text-2xl font-bold text-blue-600" id="total-projects">0</p>
+                    </div>
+                    <i class="fas fa-project-diagram text-3xl text-blue-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Surveyor Cards -->
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-4">สถิติตามผู้สำรวจ</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="surveyor-cards">
+                <!-- Surveyor cards will be populated here -->
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-4 mb-4">
+            <h3 class="text-lg font-semibold mb-4">จัดการข้อมูล</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="exportAllKML()" class="btn-primary text-white px-4 py-3 rounded-lg font-medium">
+                    <i class="fas fa-download mr-2"></i>Export ไฟล์ KML ทั้งหมด
+                </button>
+                <button onclick="exportKML()" class="btn-success text-white px-4 py-3 rounded-lg font-medium">
+                    <i class="fas fa-file-export mr-2"></i>Export KML ปัจจุบัน
+                </button>
+                <div class="relative">
+                    <select id="project-export-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">เลือกโครงการ</option>
+                    </select>
+                    <button onclick="exportProjectKML()" class="btn-warning text-white px-4 py-2 rounded-lg font-medium mt-2 w-full">
+                        <i class="fas fa-file-download mr-2"></i>Export KML ตามโครงการ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-4">
+            <h3 class="text-lg font-semibold mb-4">สถานะโครงการ</h3>
+            <div class="space-y-3" id="project-status-list">
+                <!-- Project status items will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Survey Tab -->
+    <div id="survey-tab" class="relative">
+        <!-- Control Panel -->
+        <div class="bg-white shadow-md p-4">
+            <div class="flex flex-wrap gap-4 justify-between items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-medium text-gray-700">จุดสำรวจ:</span>
+                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-bold" id="point-counter">0</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm font-medium text-gray-700">ผู้สำรวจ:</label>
+                        <select id="main-surveyor-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[150px]">
+                            <option value="">เลือกผู้สำรวจ</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm font-medium text-gray-700">โครงการ:</label>
+                        <input type="text" id="project-name-input" placeholder="ชื่อโครงการ" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[150px]">
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="startSurvey()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium" id="start-btn">
+                        <i class="fas fa-play mr-1"></i>เริ่มสำรวจ
+                    </button>
+                    <button onclick="finishSurvey()" class="btn-success text-white px-4 py-2 rounded-lg text-sm font-medium hidden" id="finish-btn">
+                        <i class="fas fa-save mr-1"></i>เสร็จสิ้น
+                    </button>
+                    <button onclick="clearSurvey()" class="btn-danger text-white px-4 py-2 rounded-lg text-sm font-medium hidden" id="clear-btn">
+                        <i class="fas fa-trash mr-1"></i>ล้างข้อมูล
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map" class="w-full h-full"></div>
+            <div class="distance-info" id="distance-info">
+                <div class="text-xs text-gray-600">ระยะทางจากจุดล่าสุด</div>
+                <div class="font-bold text-blue-600" id="distance-text">-</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Survey Point Modal -->
+    <div id="survey-modal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div class="p-4 border-b">
+                <h3 class="text-lg font-semibold">ข้อมูลจุดสำรวจ #<span id="modal-point-number">1</span></h3>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ประเภทเสา</label>
+                    <select id="pole-type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">เลือกประเภทเสา</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">การติดตั้งอุปกรณ์</label>
+                    <select id="equipment" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">เลือกอุปกรณ์</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">หัวเสา</label>
+                    <select id="pole-head" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">เลือกหัวเสา</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">สายยึดโยง&เทโคน</label>
+                    <select id="guy-wire" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">เลือกสายยึดโยง&เทโคน</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">รูปภาพ</label>
+                    <input type="file" id="photo-input" accept="image/*" multiple class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">หมายเหตุ</label>
+                    <textarea id="notes" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t flex flex-col space-y-2">
+                <button onclick="savePoint()" class="btn-primary text-white px-4 py-3 rounded-lg font-medium">
+                    <i class="fas fa-plus mr-2"></i>เพิ่มจุดสำรวจ
+                </button>
+                <button onclick="saveAndFinish()" class="btn-success text-white px-4 py-3 rounded-lg font-medium">
+                    <i class="fas fa-check mr-2"></i>เสร็จสิ้นการสำรวจ
+                </button>
+                <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-3 rounded-lg font-medium">
+                    <i class="fas fa-times mr-2"></i>ยกเลิก
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // Configuration
-        const CONFIG = {
-            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwZB9R8J8lToURW_BwXhfLIRAAbK0jI90tOrwhxLuoWqEk4lKzDqxKjtMxkwU2NeHObwQ/exec',
-            SHEET_ID: '1kf_xzfTOx98T5f_9grznU3U0U1MqA87lt_Dl2hGSyAw',
-            FOLDER_ID: '1AmI2prj8Bma9gVBb0oLq7uwkr2D1aERZ'
-        };
-
         // Global variables
         let map;
-        let currentLocation = null;
         let surveyPoints = [];
-        let currentPointIndex = 0;
-        let dropdownOptions = {};
+        let currentPointNumber = 0;
+        let isAddingPoint = false;
+        let currentLat, currentLng;
+        let currentMarker = null;
+        let options = {};
+        let allProjects = [];
+        let isOnline = false;
+        let measureLine = null;
+        let distanceLabel = null;
+
+        // Configuration
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZB9R8J8lToURW_BwXhfLIRAAbK0jI90tOrwhxLuoWqEk4lKzDqxKjtMxkwU2NeHObwQ/exec';
+        const SHEET_ID = '1kf_xzfTOx98T5f_9grznU3U0U1MqA87lt_Dl2hGSyAw';
+        const FOLDER_ID = '1AmI2prj8Bma9gVBb0oLq7uwkr2D1aERZ';
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadOptions();
+            loadDashboardData();
+            showTab('survey');
+            checkConnection();
+        });
+
+        // Check connection status
+        async function checkConnection() {
+            const statusElement = document.getElementById('connection-status');
+            const statusText = document.getElementById('status-text');
+            
+            statusElement.classList.remove('hidden');
+            statusText.textContent = 'กำลังตรวจสอบ...';
+            
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=ping&t=${Date.now()}`, {
+                    method: 'GET',
+                    timeout: 5000
+                });
+                
+                if (response.ok) {
+                    isOnline = true;
+                    statusElement.className = 'connection-status status-online';
+                    statusText.textContent = 'เชื่อมต่อแล้ว';
+                    
+                    // Load options from Google Sheets
+                    await loadOptionsFromSheets();
+                    
+                    setTimeout(() => {
+                        statusElement.classList.add('hidden');
+                    }, 2000);
+                } else {
+                    throw new Error('Connection failed');
+                }
+            } catch (error) {
+                isOnline = false;
+                statusElement.className = 'connection-status status-offline';
+                statusText.textContent = 'ออฟไลน์';
+                
+                // Use default options when offline
+                useDefaultOptions();
+                
+                setTimeout(() => {
+                    statusElement.classList.add('hidden');
+                }, 3000);
+            }
+        }
+
+        // Tab management
+        function showTab(tabName) {
+            // Hide all tabs
+            document.getElementById('dashboard-tab').classList.add('hidden');
+            document.getElementById('survey-tab').classList.add('hidden');
+            
+            // Remove active class from all nav tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+            document.getElementById('tab-' + tabName).classList.add('active');
+            
+            if (tabName === 'dashboard') {
+                loadDashboardData();
+            } else if (tabName === 'survey') {
+                setTimeout(() => {
+                    if (map) {
+                        map.invalidateSize();
+                    }
+                }, 100);
+            }
+        }
 
         // Initialize map
         function initMap() {
-            map = L.map('map', {
-                zoomControl: true,
-                attributionControl: false
-            }).setView([13.7563, 100.5018], 10);
+            map = L.map('map').setView([13.7563, 100.5018], 10);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            // Add zoom control to bottom right for mobile
-            map.zoomControl.setPosition('bottomright');
-
-            // Get current location
-            getCurrentLocation();
-            
-            // Map click event
+            // Add click event for adding points
             map.on('click', function(e) {
-                if (document.getElementById('addPointBtn').disabled) return;
-                addSurveyPoint(e.latlng.lat, e.latlng.lng);
+                if (isAddingPoint) {
+                    currentLat = e.latlng.lat;
+                    currentLng = e.latlng.lng;
+                    showSurveyModal();
+                }
             });
 
-            // Prevent map from interfering with modal
-            map.on('modalopen', function() {
-                map.dragging.disable();
-                map.touchZoom.disable();
-                map.doubleClickZoom.disable();
-                map.scrollWheelZoom.disable();
+            // Add mousemove event for distance calculation and line drawing
+            map.on('mousemove', function(e) {
+                if (isAddingPoint && surveyPoints.length > 0) {
+                    updateDistanceInfo(e.latlng);
+                    updateMeasureLine(e.latlng);
+                }
             });
 
-            map.on('modalclose', function() {
-                map.dragging.enable();
-                map.touchZoom.enable();
-                map.doubleClickZoom.enable();
-                map.scrollWheelZoom.enable();
-            });
-        }
-
-        // Get current location
-        function getCurrentLocation() {
+            // Try to get user's location
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        const lat = position.coords.latitude;
-                        const lng = position.coords.longitude;
-                        
-                        currentLocation = [lat, lng];
-                        map.setView(currentLocation, 16);
-                        
-                        // Add current location marker
-                        L.circleMarker(currentLocation, {
-                            radius: 8,
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    map.setView([lat, lng], 15);
+                    
+                    L.marker([lat, lng], {
+                        icon: L.divIcon({
                             className: 'current-location',
-                            fillOpacity: 0.8
-                        }).addTo(map).bindPopup('ตำแหน่งปัจจุบัน');
-                    },
-                    function(error) {
-                        console.error('Error getting location:', error);
-                        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถระบุตำแหน่งได้', 'error');
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 60000
-                    }
-                );
+                            html: '<i class="fas fa-crosshairs text-red-500 text-xl"></i>',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(map).bindPopup('ตำแหน่งปัจจุบัน');
+                });
             }
         }
 
-        // Calculate distance between two points
-        function calculateDistance(lat1, lng1, lat2, lng2) {
-            const R = 6371e3; // Earth's radius in meters
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lng2-lng1) * Math.PI/180;
-
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-            return R * c;
-        }
-
-        // Update distance display
-        function updateDistanceDisplay() {
-            if (surveyPoints.length > 0 && currentLocation) {
-                const lastPoint = surveyPoints[surveyPoints.length - 1];
-                const distance = calculateDistance(
-                    currentLocation[0], currentLocation[1],
-                    lastPoint.lat, lastPoint.lng
-                );
-                
-                document.getElementById('distanceText').textContent = Math.round(distance);
-                document.getElementById('distanceDisplay').style.display = 'block';
-            } else {
-                document.getElementById('distanceDisplay').style.display = 'none';
-            }
-        }
-
-        // Add survey point
-        function addSurveyPoint(lat, lng) {
-            const pointData = {
-                id: Date.now(),
-                lat: lat,
-                lng: lng,
-                timestamp: new Date().toISOString(),
-                poleType: '',
-                equipment: '',
-                poleHead: '',
-                wireSupport: '',
-                images: [],
-                notes: ''
-            };
-
-            surveyPoints.push(pointData);
-            currentPointIndex = surveyPoints.length - 1;
-
-            // Add marker to map
-            const marker = L.circleMarker([lat, lng], {
-                radius: 10,
-                className: 'survey-point',
-                fillOpacity: 0.8
-            }).addTo(map);
-
-            marker.bindPopup(`จุดสำรวจ #${surveyPoints.length}<br>พิกัด: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-
-            // Update UI
-            updatePointCount();
-            updatePointsList();
-            updateDistanceDisplay();
-
-            // Show survey modal
-            showSurveyModal(pointData);
-        }
-
-        // Show survey modal
-        function showSurveyModal(pointData) {
-            document.getElementById('modalCoords').textContent = 
-                `${pointData.lat.toFixed(6)}, ${pointData.lng.toFixed(6)}`;
-            
-            // Clear form
-            document.getElementById('poleType').value = '';
-            document.getElementById('equipment').value = '';
-            document.getElementById('poleHead').value = '';
-            document.getElementById('wireSupport').value = '';
-            document.getElementById('imageUpload').value = '';
-            document.getElementById('notes').value = '';
-            document.getElementById('imagePreview').innerHTML = '';
-
-            document.getElementById('surveyModal').classList.remove('hidden');
-            document.getElementById('addPointBtn').disabled = true;
-            
-            // Disable map interaction
-            map.fire('modalopen');
-            
-            // Prevent body scroll on mobile
-            document.body.style.overflow = 'hidden';
-        }
-
-        // Hide survey modal
-        function hideSurveyModal() {
-            document.getElementById('surveyModal').classList.add('hidden');
-            document.getElementById('addPointBtn').disabled = false;
-            
-            // Re-enable map interaction
-            map.fire('modalclose');
-            
-            // Re-enable body scroll
-            document.body.style.overflow = '';
-        }
-
-        // Load dropdown options from Google Sheets
-        async function loadDropdownOptions() {
+        // Load options from Google Sheets
+        async function loadOptionsFromSheets() {
             try {
-                const response = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=getOptions`);
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=getOptions&sheetId=${SHEET_ID}&t=${Date.now()}`);
                 const data = await response.json();
                 
                 if (data.success) {
-                    dropdownOptions = data.options;
+                    options = data.options;
                     populateDropdowns();
+                    populateSurveyorSelect();
+                } else {
+                    throw new Error('Failed to load options');
                 }
             } catch (error) {
-                console.error('Error loading dropdown options:', error);
-                // Use default options if loading fails
-                setDefaultOptions();
+                console.error('Error loading options from sheets:', error);
+                useDefaultOptions();
             }
         }
 
-        // Set default dropdown options
-        function setDefaultOptions() {
-            dropdownOptions = {
-                poleType: ['เสาแรงสูง 115kV', 'เสาแรงสูง 230kV', 'เสาแรงกลาง 22kV', 'เสาแรงต่ำ 380V'],
-                equipment: ['หม้อแปลง', 'สวิตช์', 'คาปาซิเตอร์', 'ไม่มีอุปกรณ์'],
-                poleHead: ['หัวเสาเหล็ก', 'หัวเสาคอนกรีต', 'หัวเสาไม้', 'อื่นๆ'],
-                wireSupport: ['สายยึดโยง', 'เทโคน', 'ทั้งสองอย่าง', 'ไม่มี']
+        // Load options (fallback to default if needed)
+        function loadOptions() {
+            if (isOnline) {
+                loadOptionsFromSheets();
+            } else {
+                useDefaultOptions();
+            }
+        }
+
+        // Use default options
+        function useDefaultOptions() {
+            options = {
+                surveyors: [
+                    'ศุภกฤษ ทะวัง', 
+                    'อาทิตย์ สมบัติ', 
+                    'สนธยา คำจันทร์'
+                ],
+                poleTypes: [
+                    '8m', 
+                    '9m', 
+                    '12m', 
+                    '12.20m', 
+                    '14m',
+                    '14.30m',
+                    '22m'
+                ],
+                equipment: [
+                    'หม้อแปลง', 
+                    'สวิตช์', 
+                    'คาปาซิเตอร์', 
+                    'ไม่มีอุปกรณ์',
+                    'เครื่องตัดไฟอัตโนมัติ', 
+                    'เซอร์กิตเบรกเกอร์',
+                    'ฟิวส์',
+                    'อุปกรณ์วัดไฟฟ้า'
+                ],
+                poleHeads: [
+                    'ทางตรง', 
+                    'ทางโค้ง', 
+                    'DDE', 
+                    'DE'
+                ],
+                guyWires: [
+                    'มีสายยึดโยง', 
+                    'ไม่มีสายยึดโยง', 
+                    'เทโคน', 
+                    'ทั้งสอง'
+                ]
             };
             populateDropdowns();
+            populateSurveyorSelect();
         }
 
         // Populate dropdown menus
         function populateDropdowns() {
-            const dropdowns = ['poleType', 'equipment', 'poleHead', 'wireSupport'];
-            
-            dropdowns.forEach(dropdown => {
-                const select = document.getElementById(dropdown);
-                const options = dropdownOptions[dropdown] || [];
-                
-                // Clear existing options except first one
-                while (select.children.length > 1) {
-                    select.removeChild(select.lastChild);
+            const dropdowns = {
+                'pole-type': options.poleTypes || [],
+                'equipment': options.equipment || [],
+                'pole-head': options.poleHeads || [],
+                'guy-wire': options.guyWires || []
+            };
+
+            Object.keys(dropdowns).forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    select.innerHTML = '<option value="">เลือก...</option>';
+                    
+                    const optionsList = dropdowns[id];
+                    optionsList.forEach(option => {
+                        if (option && option.trim()) {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.trim();
+                            optionElement.textContent = option.trim();
+                            select.appendChild(optionElement);
+                        }
+                    });
                 }
-                
-                // Add options
-                options.forEach(option => {
-                    const optionElement = document.createElement('option');
-                    optionElement.value = option;
-                    optionElement.textContent = option;
-                    select.appendChild(optionElement);
-                });
             });
         }
 
-        // Handle image upload
-        function handleImageUpload(files) {
-            const preview = document.getElementById('imagePreview');
-            preview.innerHTML = '';
+        // Populate main surveyor select
+        function populateSurveyorSelect() {
+            const select = document.getElementById('main-surveyor-select');
+            if (select && options.surveyors) {
+                select.innerHTML = '<option value="">เลือกผู้สำรวจ</option>';
+                
+                options.surveyors.forEach(surveyor => {
+                    if (surveyor && surveyor.trim()) {
+                        const option = document.createElement('option');
+                        option.value = surveyor.trim();
+                        option.textContent = surveyor.trim();
+                        select.appendChild(option);
+                    }
+                });
+            }
+        }
 
-            Array.from(files).forEach((file, index) => {
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.className = 'w-full h-16 sm:h-20 object-cover rounded border';
-                        preview.appendChild(img);
-                    };
-                    reader.readAsDataURL(file);
-                }
+        // Start survey
+        function startSurvey() {
+            const selectedSurveyor = document.getElementById('main-surveyor-select').value;
+            const projectName = document.getElementById('project-name-input').value.trim();
+            
+            if (!selectedSurveyor) {
+                Swal.fire({
+                    title: 'กรุณาเลือกผู้สำรวจ',
+                    text: 'กรุณาเลือกชื่อผู้สำรวจก่อนเริ่มการสำรวจ',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            if (!projectName) {
+                Swal.fire({
+                    title: 'กรุณาใส่ชื่อโครงการ',
+                    text: 'กรุณาใส่ชื่อโครงการก่อนเริ่มการสำรวจ',
+                    icon: 'warning'
+                });
+                return;
+            }
+            
+            isAddingPoint = true;
+            document.getElementById('start-btn').classList.add('hidden');
+            document.getElementById('finish-btn').classList.remove('hidden');
+            document.getElementById('clear-btn').classList.remove('hidden');
+            document.getElementById('main-surveyor-select').disabled = true;
+            document.getElementById('project-name-input').disabled = true;
+            
+            Swal.fire({
+                title: 'เริ่มการสำรวจ',
+                text: `โครงการ: ${projectName}\nผู้สำรวจ: ${selectedSurveyor}\nคลิกบนแผนที่เพื่อปักหมุดจุดสำรวจ`,
+                icon: 'info',
+                timer: 3000,
+                showConfirmButton: false
             });
+        }
+
+        // Update distance info
+        function updateDistanceInfo(latlng) {
+            if (surveyPoints.length === 0) return;
+            
+            const lastPoint = surveyPoints[surveyPoints.length - 1];
+            const distance = calculateDistance(lastPoint.lat, lastPoint.lng, latlng.lat, latlng.lng);
+            
+            document.getElementById('distance-text').textContent = `${distance.toFixed(0)} เมตร`;
+        }
+
+        // Update measure line with distance label
+        function updateMeasureLine(latlng) {
+            if (surveyPoints.length === 0) return;
+            
+            // Remove existing measure line and label
+            if (measureLine) {
+                map.removeLayer(measureLine);
+            }
+            if (distanceLabel) {
+                map.removeLayer(distanceLabel);
+            }
+            
+            const lastPoint = surveyPoints[surveyPoints.length - 1];
+            const distance = calculateDistance(lastPoint.lat, lastPoint.lng, latlng.lat, latlng.lng);
+            
+            // Create new measure line
+            measureLine = L.polyline([
+                [lastPoint.lat, lastPoint.lng],
+                [latlng.lat, latlng.lng]
+            ], {
+                color: '#ff6b6b',
+                weight: 2,
+                opacity: 0.8,
+                dashArray: '5, 10'
+            }).addTo(map);
+            
+            // Add distance label at midpoint
+            const midLat = (lastPoint.lat + latlng.lat) / 2;
+            const midLng = (lastPoint.lng + latlng.lng) / 2;
+            
+            distanceLabel = L.marker([midLat, midLng], {
+                icon: L.divIcon({
+                    className: 'distance-label',
+                    html: `<div style="background: rgba(255,107,107,0.9); color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">${distance.toFixed(0)}m</div>`,
+                    iconSize: [0, 0],
+                    iconAnchor: [0, 0]
+                })
+            }).addTo(map);
+        }
+
+        // Calculate distance between two points
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371000; // Earth's radius in meters
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Show survey modal
+        function showSurveyModal() {
+            // Remove measure line when showing modal
+            if (measureLine) {
+                map.removeLayer(measureLine);
+                measureLine = null;
+            }
+            if (distanceLabel) {
+                map.removeLayer(distanceLabel);
+                distanceLabel = null;
+            }
+            
+            // Set correct point number (next available number)
+            const nextPointNumber = surveyPoints.length + 1;
+            document.getElementById('modal-point-number').textContent = nextPointNumber;
+            document.getElementById('survey-modal').classList.remove('hidden');
+            document.getElementById('survey-modal').classList.add('flex');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('survey-modal').classList.add('hidden');
+            document.getElementById('survey-modal').classList.remove('flex');
+        }
+
+        // Save point and continue
+        function savePoint() {
+            if (validateForm()) {
+                addPointToSurvey();
+                closeModal();
+                clearForm();
+            }
+        }
+
+        // Save point and finish
+        function saveAndFinish() {
+            if (validateForm()) {
+                addPointToSurvey();
+                closeModal();
+                finishSurvey();
+            }
+        }
+
+        // Validate form
+        function validateForm() {
+            const required = ['pole-type'];
+            for (let id of required) {
+                if (!document.getElementById(id).value) {
+                    Swal.fire({
+                        title: 'ข้อมูลไม่ครบถ้วน',
+                        text: 'กรุณาเลือกประเภทเสา',
+                        icon: 'warning'
+                    });
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Add point to survey
+        async function addPointToSurvey() {
+            const photoFiles = document.getElementById('photo-input').files;
+            let photoUrls = [];
+
+            // Handle photo upload
+            if (photoFiles.length > 0) {
+                for (let file of photoFiles) {
+                    const base64 = await fileToBase64(file);
+                    photoUrls.push({
+                        name: file.name,
+                        data: base64,
+                        type: file.type
+                    });
+                }
+            }
+
+            const selectedSurveyor = document.getElementById('main-surveyor-select').value;
+            const projectName = document.getElementById('project-name-input').value.trim();
+            const pointNumber = surveyPoints.length + 1;
+
+            const point = {
+                number: pointNumber,
+                lat: currentLat,
+                lng: currentLng,
+                surveyorName: selectedSurveyor,
+                projectName: projectName,
+                poleType: document.getElementById('pole-type').value,
+                equipment: document.getElementById('equipment').value,
+                poleHead: document.getElementById('pole-head').value,
+                guyWire: document.getElementById('guy-wire').value,
+                photos: photoUrls,
+                notes: document.getElementById('notes').value,
+                timestamp: new Date().toISOString()
+            };
+
+            surveyPoints.push(point);
+            addMarkerToMap(point);
+            updatePointCounter();
         }
 
         // Convert file to base64
@@ -493,154 +743,70 @@
             });
         }
 
-        // Save current point data
-        async function saveCurrentPoint() {
-            const currentPoint = surveyPoints[currentPointIndex];
-            
-            // Update point data
-            currentPoint.poleType = document.getElementById('poleType').value;
-            currentPoint.equipment = document.getElementById('equipment').value;
-            currentPoint.poleHead = document.getElementById('poleHead').value;
-            currentPoint.wireSupport = document.getElementById('wireSupport').value;
-            currentPoint.notes = document.getElementById('notes').value;
+        // Add marker to map
+        function addMarkerToMap(point) {
+            const marker = L.marker([point.lat, point.lng], {
+                icon: L.divIcon({
+                    className: 'numbered-marker',
+                    html: point.number.toString(),
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            }).addTo(map);
 
-            // Handle image uploads
-            const imageFiles = document.getElementById('imageUpload').files;
-            if (imageFiles.length > 0) {
-                currentPoint.images = [];
-                for (let file of imageFiles) {
-                    try {
-                        const base64 = await fileToBase64(file);
-                        currentPoint.images.push({
-                            name: file.name,
-                            type: file.type,
-                            data: base64
-                        });
-                    } catch (error) {
-                        console.error('Error converting image:', error);
-                    }
-                }
-            }
-
-            updatePointsList();
-        }
-
-        // Update point count
-        function updatePointCount() {
-            document.getElementById('pointCount').textContent = surveyPoints.length;
-            
-            // Enable/disable buttons
-            const hasPoints = surveyPoints.length > 0;
-            document.getElementById('exportKmlBtn').disabled = !hasPoints;
-            document.getElementById('saveAllBtn').disabled = !hasPoints;
-        }
-
-        // Update points list
-        function updatePointsList() {
-            const container = document.getElementById('pointsList');
-            
-            if (surveyPoints.length === 0) {
-                container.innerHTML = '<div class="p-3 sm:p-4 text-center text-gray-500 text-xs sm:text-sm">ยังไม่มีจุดสำรวจ</div>';
-                return;
-            }
-
-            container.innerHTML = surveyPoints.map((point, index) => `
-                <div class="p-2 sm:p-3 border-b border-gray-100 last:border-b-0">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="font-medium text-xs sm:text-sm">จุดสำรวจ #${index + 1}</div>
-                            <div class="text-xs text-gray-600">
-                                ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">
-                                ${point.poleType || 'ยังไม่ระบุประเภทเสา'}
-                            </div>
-                        </div>
-                        <div class="text-xs text-gray-400">
-                            ${new Date(point.timestamp).toLocaleTimeString('th-TH')}
-                        </div>
-                    </div>
+            marker.bindPopup(`
+                <div class="p-2">
+                    <h4 class="font-bold">จุดที่ ${point.number}</h4>
+                    <p><strong>โครงการ:</strong> ${point.projectName}</p>
+                    <p><strong>ผู้สำรวจ:</strong> ${point.surveyorName}</p>
+                    <p><strong>ประเภทเสา:</strong> ${point.poleType}</p>
+                    <p><strong>พิกัด:</strong> ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}</p>
                 </div>
-            `).join('');
+            `);
         }
 
-        // Export to KML
-        function exportKML() {
-            if (surveyPoints.length === 0) {
-                Swal.fire('ข้อผิดพลาด', 'ไม่มีจุดสำรวจให้ Export', 'warning');
-                return;
-            }
-
-            const surveyorName = document.getElementById('surveyorName').value || 'ไม่ระบุชื่อ';
-            const projectName = document.getElementById('projectName').value || 'โครงการสำรวจเสาไฟฟ้า';
-
-            let kml = `<?xml version="1.0" encoding="UTF-8"?>
-<kml xmlns="http://www.opengis.net/kml/2.2">
-    <Document>
-        <name>${projectName}</name>
-        <description>ข้อมูลสำรวจเสาไฟฟ้า โดย ${surveyorName}</description>
-        
-        <Style id="poleStyle">
-            <IconStyle>
-                <Icon>
-                    <href>http://maps.google.com/mapfiles/kml/paddle/red-circle.png</href>
-                </Icon>
-            </IconStyle>
-        </Style>`;
-
-            surveyPoints.forEach((point, index) => {
-                kml += `
-        <Placemark>
-            <name>จุดสำรวจ #${index + 1}</name>
-            <description><![CDATA[
-                <b>ประเภทเสา:</b> ${point.poleType || 'ไม่ระบุ'}<br>
-                <b>อุปกรณ์:</b> ${point.equipment || 'ไม่ระบุ'}<br>
-                <b>หัวเสา:</b> ${point.poleHead || 'ไม่ระบุ'}<br>
-                <b>สายยึดโยง:</b> ${point.wireSupport || 'ไม่ระบุ'}<br>
-                <b>หมายเหตุ:</b> ${point.notes || 'ไม่มี'}<br>
-                <b>เวลาสำรวจ:</b> ${new Date(point.timestamp).toLocaleString('th-TH')}
-            ]]></description>
-            <styleUrl>#poleStyle</styleUrl>
-            <Point>
-                <coordinates>${point.lng},${point.lat},0</coordinates>
-            </Point>
-        </Placemark>`;
-            });
-
-            kml += `
-    </Document>
-</kml>`;
-
-            // Download KML file
-            const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `survey_${new Date().toISOString().split('T')[0]}.kml`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            Swal.fire('สำเร็จ', 'Export ไฟล์ KML เรียบร้อยแล้ว', 'success');
+        // Update point counter
+        function updatePointCounter() {
+            document.getElementById('point-counter').textContent = surveyPoints.length;
         }
 
-        // Save all data to Google Sheets
-        async function saveAllData() {
-            const surveyorName = document.getElementById('surveyorName').value;
-            const projectName = document.getElementById('projectName').value;
+        // Clear form
+        function clearForm() {
+            document.getElementById('pole-type').value = '';
+            document.getElementById('equipment').value = '';
+            document.getElementById('pole-head').value = '';
+            document.getElementById('guy-wire').value = '';
+            document.getElementById('photo-input').value = '';
+            document.getElementById('notes').value = '';
+        }
 
-            if (!surveyorName) {
-                Swal.fire('ข้อผิดพลาด', 'กรุณากรอกชื่อผู้สำรวจ', 'warning');
-                return;
-            }
-
+        // Finish survey
+        async function finishSurvey() {
             if (surveyPoints.length === 0) {
-                Swal.fire('ข้อผิดพลาด', 'ไม่มีจุดสำรวจให้บันทึก', 'warning');
+                Swal.fire({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'กรุณาเพิ่มจุดสำรวจอย่างน้อย 1 จุด',
+                    icon: 'warning'
+                });
                 return;
             }
 
-            // Show loading
+            if (!isOnline) {
+                Swal.fire({
+                    title: 'ไม่สามารถบันทึกได้',
+                    text: 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต ข้อมูลจะถูกเก็บไว้ในเครื่อง',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Export KML',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        exportKML();
+                    }
+                });
+                return;
+            }
+
             Swal.fire({
                 title: 'กำลังบันทึกข้อมูล...',
                 allowOutsideClick: false,
@@ -650,103 +816,395 @@
             });
 
             try {
-                const formData = new URLSearchParams();
-                formData.append('action', 'saveSurveyData');
-                formData.append('surveyorName', surveyorName);
-                formData.append('projectName', projectName);
-                formData.append('surveyData', JSON.stringify(surveyPoints));
-                formData.append('sheetId', CONFIG.SHEET_ID);
-                formData.append('folderId', CONFIG.FOLDER_ID);
+                await saveSurveyData();
+                
+                Swal.fire({
+                    title: 'บันทึกสำเร็จ!',
+                    text: `บันทึกข้อมูล ${surveyPoints.length} จุดเรียบร้อยแล้ว`,
+                    icon: 'success'
+                });
 
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                resetSurvey();
+                loadDashboardData();
+            } catch (error) {
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถบันทึกข้อมูลได้ ต้องการ Export เป็น KML หรือไม่?',
+                    icon: 'error',
+                    showCancelButton: true,
+                    confirmButtonText: 'Export KML',
+                    cancelButtonText: 'ยกเลิก'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        exportKML();
+                    }
+                });
+            }
+        }
+
+        // Save survey data to Google Sheets
+        async function saveSurveyData() {
+            for (let point of surveyPoints) {
+                const formData = new URLSearchParams();
+                formData.append('action', 'saveSurveyPoint');
+                formData.append('sheetId', SHEET_ID);
+                formData.append('folderId', FOLDER_ID);
+                formData.append('surveyorName', point.surveyorName);
+                formData.append('projectName', point.projectName);
+                formData.append('pointNumber', point.number);
+                formData.append('lat', point.lat);
+                formData.append('lng', point.lng);
+                formData.append('poleType', point.poleType);
+                formData.append('equipment', point.equipment);
+                formData.append('poleHead', point.poleHead);
+                formData.append('guyWire', point.guyWire);
+                formData.append('notes', point.notes);
+                formData.append('timestamp', point.timestamp);
+                formData.append('photos', JSON.stringify(point.photos));
+
+                const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
                     body: formData
                 });
 
                 const result = await response.json();
-
-                if (result.success) {
-                    Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อยแล้ว', 'success');
-                    
-                    // Reset form
-                    surveyPoints = [];
-                    updatePointCount();
-                    updatePointsList();
-                    map.eachLayer(layer => {
-                        if (layer instanceof L.CircleMarker && !layer.options.className?.includes('current-location')) {
-                            map.removeLayer(layer);
-                        }
-                    });
-                } else {
-                    throw new Error(result.error || 'เกิดข้อผิดพลาดในการบันทึก');
+                if (!result.success) {
+                    throw new Error(result.error);
                 }
-            } catch (error) {
-                console.error('Error saving data:', error);
-                Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้: ' + error.message, 'error');
             }
         }
 
-        // Update current time
-        function updateCurrentTime() {
-            const now = new Date();
-            document.getElementById('currentTime').textContent = 
-                now.toLocaleString('th-TH', { 
-                    day: '2-digit', 
-                    month: '2-digit', 
-                    year: 'numeric',
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                });
+        // Reset survey
+        function resetSurvey() {
+            surveyPoints = [];
+            currentPointNumber = 0;
+            isAddingPoint = false;
+            
+            // Remove measure line and label
+            if (measureLine) {
+                map.removeLayer(measureLine);
+                measureLine = null;
+            }
+            if (distanceLabel) {
+                map.removeLayer(distanceLabel);
+                distanceLabel = null;
+            }
+            
+            // Clear map markers
+            map.eachLayer(function(layer) {
+                if (layer instanceof L.Marker && layer.options.icon && layer.options.icon.options.className === 'numbered-marker') {
+                    map.removeLayer(layer);
+                }
+            });
+
+            updatePointCounter();
+            
+            document.getElementById('start-btn').classList.remove('hidden');
+            document.getElementById('finish-btn').classList.add('hidden');
+            document.getElementById('clear-btn').classList.add('hidden');
+            document.getElementById('main-surveyor-select').disabled = false;
+            document.getElementById('project-name-input').disabled = false;
+            document.getElementById('distance-text').textContent = '-';
         }
 
-        // Event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            initMap();
-            loadDropdownOptions();
-            updateCurrentTime();
-            setInterval(updateCurrentTime, 60000);
+        // Clear survey
+        function clearSurvey() {
+            Swal.fire({
+                title: 'ยืนยันการล้างข้อมูล',
+                text: 'ต้องการล้างข้อมูลการสำรวจทั้งหมดหรือไม่?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'ใช่, ล้างข้อมูล',
+                cancelButtonText: 'ยกเลิก'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    resetSurvey();
+                    Swal.fire('ล้างข้อมูลแล้ว!', '', 'success');
+                }
+            });
+        }
 
-            // Button event listeners
-            document.getElementById('getCurrentLocationBtn').addEventListener('click', getCurrentLocation);
+        // Load dashboard data
+        async function loadDashboardData() {
+            if (!isOnline) {
+                document.getElementById('total-projects').textContent = 'ออฟไลน์';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=getDashboardData&sheetId=${SHEET_ID}&t=${Date.now()}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allProjects = data.projects || [];
+                    updateDashboard();
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                document.getElementById('total-projects').textContent = 'ข้อผิดพลาด';
+            }
+        }
+
+        // Update dashboard
+        function updateDashboard() {
+            const totalProjects = allProjects.length;
+            document.getElementById('total-projects').textContent = totalProjects;
+
+            // Group by surveyor
+            const surveyorStats = {};
+            allProjects.forEach(project => {
+                const surveyor = project.surveyorName || 'ไม่ระบุ';
+                if (!surveyorStats[surveyor]) {
+                    surveyorStats[surveyor] = 0;
+                }
+                surveyorStats[surveyor]++;
+            });
+
+            // Update surveyor cards
+            const surveyorCardsContainer = document.getElementById('surveyor-cards');
+            surveyorCardsContainer.innerHTML = '';
+
+            Object.keys(surveyorStats).forEach(surveyor => {
+                const count = surveyorStats[surveyor];
+                const percentage = totalProjects > 0 ? ((count / totalProjects) * 100).toFixed(1) : 0;
+                
+                const card = document.createElement('div');
+                card.className = 'surveyor-card card-gradient p-4 rounded-lg shadow-md';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600">${surveyor}</p>
+                            <p class="text-xl font-bold text-green-600">${count} จุด</p>
+                            <p class="text-xs text-gray-500">${percentage}%</p>
+                        </div>
+                        <i class="fas fa-user text-2xl text-green-400"></i>
+                    </div>
+                `;
+                surveyorCardsContainer.appendChild(card);
+            });
+
+            // Update project status list and export dropdown
+            updateProjectStatusList();
+            updateProjectExportDropdown();
+        }
+
+        // Update project export dropdown
+        function updateProjectExportDropdown() {
+            const select = document.getElementById('project-export-select');
+            select.innerHTML = '<option value="">เลือกโครงการ</option>';
+
+            // Get unique project names
+            const projectNames = [...new Set(allProjects.map(p => p.projectName).filter(name => name))];
             
-            document.getElementById('addAnotherPointBtn').addEventListener('click', async function() {
-                await saveCurrentPoint();
-                hideSurveyModal();
+            projectNames.forEach(projectName => {
+                const option = document.createElement('option');
+                option.value = projectName;
+                option.textContent = projectName;
+                select.appendChild(option);
             });
+        }
 
-            document.getElementById('finishSurveyBtn').addEventListener('click', async function() {
-                await saveCurrentPoint();
-                hideSurveyModal();
-            });
+        // Update project status list (grouped by project)
+        function updateProjectStatusList() {
+            const statusList = document.getElementById('project-status-list');
+            statusList.innerHTML = '';
 
-            document.getElementById('closeModalBtn').addEventListener('click', function() {
-                hideSurveyModal();
-            });
+            if (allProjects.length === 0) {
+                statusList.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีข้อมูลโครงการ</p>';
+                return;
+            }
 
-            document.getElementById('exportKmlBtn').addEventListener('click', exportKML);
-            document.getElementById('saveAllBtn').addEventListener('click', saveAllData);
-
-            document.getElementById('imageUpload').addEventListener('change', function(e) {
-                handleImageUpload(e.target.files);
-            });
-
-            // Close modal when clicking outside
-            document.getElementById('surveyModal').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    hideSurveyModal();
+            // Group by project name
+            const projectGroups = {};
+            allProjects.forEach(project => {
+                const projectName = project.projectName || 'ไม่ระบุโครงการ';
+                if (!projectGroups[projectName]) {
+                    projectGroups[projectName] = [];
                 }
+                projectGroups[projectName].push(project);
             });
 
-            // Prevent zoom on double tap for iOS
-            let lastTouchEnd = 0;
-            document.addEventListener('touchend', function (event) {
-                const now = (new Date()).getTime();
-                if (now - lastTouchEnd <= 300) {
-                    event.preventDefault();
+            Object.keys(projectGroups).forEach(projectName => {
+                const projects = projectGroups[projectName];
+                const firstProject = projects[0];
+                const pointCount = projects.length;
+                
+                const statusItem = document.createElement('div');
+                statusItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+                statusItem.innerHTML = `
+                    <div>
+                        <p class="font-medium">${projectName}</p>
+                        <p class="text-sm text-gray-600">${pointCount} จุดสำรวจ</p>
+                    </div>
+                    <select onchange="updateProjectGroupStatus('${projectName}', this.value)" class="px-3 py-1 border rounded-lg text-sm">
+                        <option value="ยังไม่เขียนผัง" ${firstProject.status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
+                        <option value="เขียนผังแล้ว" ${firstProject.status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
+                    </select>
+                `;
+                statusList.appendChild(statusItem);
+            });
+        }
+
+        // Update project group status
+        async function updateProjectGroupStatus(projectName, status) {
+            if (!isOnline) {
+                Swal.fire({
+                    title: 'ไม่สามารถอัปเดตได้',
+                    text: 'ไม่มีการเชื่อมต่ออินเทอร์เน็ต',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'updateProjectStatus');
+                formData.append('sheetId', SHEET_ID);
+                formData.append('projectName', projectName);
+                formData.append('status', status);
+
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    // Update local data
+                    allProjects.forEach(project => {
+                        if (project.projectName === projectName) {
+                            project.status = status;
+                        }
+                    });
+                    
+                    Swal.fire({
+                        title: 'อัปเดตสำเร็จ',
+                        text: `อัปเดตสถานะโครงการ "${projectName}" เรียบร้อยแล้ว`,
+                        icon: 'success',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
                 }
-                lastTouchEnd = now;
-            }, false);
-        });
+            } catch (error) {
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถอัปเดตสถานะได้',
+                    icon: 'error'
+                });
+            }
+        }
+
+        // Export all KML
+        function exportAllKML() {
+            if (allProjects.length === 0) {
+                Swal.fire({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'ไม่มีข้อมูลสำหรับ Export',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            const kml = generateKML(allProjects, 'ข้อมูลสำรวจเสาไฟฟ้าทั้งหมด');
+            downloadKML(kml, 'survey_all_points.kml');
+        }
+
+        // Export project KML
+        function exportProjectKML() {
+            const selectedProject = document.getElementById('project-export-select').value;
+            
+            if (!selectedProject) {
+                Swal.fire({
+                    title: 'กรุณาเลือกโครงการ',
+                    text: 'กรุณาเลือกโครงการที่ต้องการ Export',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            const projectData = allProjects.filter(p => p.projectName === selectedProject);
+            
+            if (projectData.length === 0) {
+                Swal.fire({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'ไม่มีข้อมูลในโครงการที่เลือก',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            const kml = generateKML(projectData, `โครงการ: ${selectedProject}`);
+            downloadKML(kml, `${selectedProject.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}.kml`);
+        }
+
+        // Export KML
+        function exportKML() {
+            if (surveyPoints.length === 0) {
+                Swal.fire({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'ไม่มีข้อมูลการสำรวจปัจจุบันสำหรับ Export',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            const kml = generateKML(surveyPoints, 'ข้อมูลสำรวจปัจจุบัน');
+            downloadKML(kml, 'current_survey.kml');
+        }
+
+        // Generate KML content
+        function generateKML(points, name) {
+            let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${name}</name>
+    <description>ข้อมูลสำรวจเสาไฟฟ้า PEA</description>
+`;
+
+            points.forEach(point => {
+                kml += `
+    <Placemark>
+      <name>จุดที่ ${point.number || point.pointNumber}</name>
+      <description><![CDATA[
+        <b>โครงการ:</b> ${point.projectName || '-'}<br/>
+        <b>ผู้สำรวจ:</b> ${point.surveyorName}<br/>
+        <b>ประเภทเสา:</b> ${point.poleType}<br/>
+        <b>อุปกรณ์:</b> ${point.equipment || '-'}<br/>
+        <b>หัวเสา:</b> ${point.poleHead || '-'}<br/>
+        <b>สายยึดโยง:</b> ${point.guyWire || '-'}<br/>
+        <b>หมายเหตุ:</b> ${point.notes || '-'}
+      ]]></description>
+      <Point>
+        <coordinates>${point.lng},${point.lat},0</coordinates>
+      </Point>
+    </Placemark>`;
+            });
+
+            kml += `
+  </Document>
+</kml>`;
+
+            return kml;
+        }
+
+        // Download KML file
+        function downloadKML(kmlContent, filename) {
+            const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            Swal.fire({
+                title: 'ดาวน์โหลดสำเร็จ',
+                text: `ไฟล์ ${filename} ถูกดาวน์โหลดแล้ว`,
+                icon: 'success'
+            });
+        }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989bdf237385a1c2',t:'MTc1OTY1NjMyNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989e2ffbf674a1c2',t:'MTc1OTY4MDYwOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
