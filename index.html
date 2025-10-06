@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Survey PEA NPN</title>
+    <title>SURVEY PEA NPN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -92,6 +92,25 @@
             min-width: 200px;
             max-width: 250px;
         }
+        .project-item {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .project-item:hover {
+            background-color: #f3f4f6;
+        }
+        .project-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .project-details.expanded {
+            max-height: 500px;
+        }
+        .surveyor-project-item {
+            background: #f8fafc;
+            border-left: 3px solid #3b82f6;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -107,7 +126,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-lg font-bold text-gray-800">
                     <i class="fas fa-bolt text-blue-600 mr-2"></i>
-                    Survey PEA NPN
+                    SURVEY PEA NPN
                 </h1>
                 <div class="flex space-x-2">
                     <button onclick="showTab('dashboard')" class="nav-tab px-3 py-2 rounded-lg text-sm font-medium" id="tab-dashboard">
@@ -131,6 +150,24 @@
                         <p class="text-2xl font-bold text-blue-600" id="total-projects">0</p>
                     </div>
                     <i class="fas fa-project-diagram text-3xl text-blue-400"></i>
+                </div>
+            </div>
+            <div class="card-gradient p-4 rounded-lg shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">ผู้สำรวจทั้งหมด</p>
+                        <p class="text-2xl font-bold text-green-600" id="total-surveyors">0</p>
+                    </div>
+                    <i class="fas fa-users text-3xl text-green-400"></i>
+                </div>
+            </div>
+            <div class="card-gradient p-4 rounded-lg shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600">จุดสำรวจทั้งหมด</p>
+                        <p class="text-2xl font-bold text-purple-600" id="total-points">0</p>
+                    </div>
+                    <i class="fas fa-map-pin text-3xl text-purple-400"></i>
                 </div>
             </div>
         </div>
@@ -164,7 +201,7 @@
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="text-lg font-semibold mb-4">สถานะโครงการ</h3>
+            <h3 class="text-lg font-semibold mb-4">สถานะโครงการ (จัดกลุ่มตามผู้สำรวจ)</h3>
             <div class="space-y-3" id="project-status-list">
                 <!-- Project status items will be populated here -->
             </div>
@@ -928,6 +965,8 @@
         async function loadDashboardData() {
             if (!isOnline) {
                 document.getElementById('total-projects').textContent = 'ออฟไลน์';
+                document.getElementById('total-surveyors').textContent = 'ออฟไลน์';
+                document.getElementById('total-points').textContent = 'ออฟไลน์';
                 return;
             }
 
@@ -942,13 +981,20 @@
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 document.getElementById('total-projects').textContent = 'ข้อผิดพลาด';
+                document.getElementById('total-surveyors').textContent = 'ข้อผิดพลาด';
+                document.getElementById('total-points').textContent = 'ข้อผิดพลาด';
             }
         }
 
         // Update dashboard
         function updateDashboard() {
-            const totalProjects = allProjects.length;
-            document.getElementById('total-projects').textContent = totalProjects;
+            const totalPoints = allProjects.length;
+            const uniqueProjects = [...new Set(allProjects.map(p => p.projectName).filter(name => name))];
+            const uniqueSurveyors = [...new Set(allProjects.map(p => p.surveyorName).filter(name => name))];
+            
+            document.getElementById('total-projects').textContent = uniqueProjects.length;
+            document.getElementById('total-surveyors').textContent = uniqueSurveyors.length;
+            document.getElementById('total-points').textContent = totalPoints;
 
             // Group by surveyor
             const surveyorStats = {};
@@ -966,7 +1012,7 @@
 
             Object.keys(surveyorStats).forEach(surveyor => {
                 const count = surveyorStats[surveyor];
-                const percentage = totalProjects > 0 ? ((count / totalProjects) * 100).toFixed(1) : 0;
+                const percentage = totalPoints > 0 ? ((count / totalPoints) * 100).toFixed(1) : 0;
                 
                 const card = document.createElement('div');
                 card.className = 'surveyor-card card-gradient p-4 rounded-lg shadow-md';
@@ -1004,7 +1050,15 @@
             });
         }
 
-        // Update project status list (grouped by project)
+        // Toggle project details
+        function toggleProjectDetails(surveyorName) {
+            const detailsElement = document.getElementById(`details-${surveyorName.replace(/\s+/g, '-')}`);
+            if (detailsElement) {
+                detailsElement.classList.toggle('expanded');
+            }
+        }
+
+        // Update project status list (grouped by surveyor, then by project)
         function updateProjectStatusList() {
             const statusList = document.getElementById('project-status-list');
             statusList.innerHTML = '';
@@ -1014,34 +1068,74 @@
                 return;
             }
 
-            // Group by project name
-            const projectGroups = {};
+            // Group by surveyor first, then by project
+            const surveyorGroups = {};
             allProjects.forEach(project => {
+                const surveyorName = project.surveyorName || 'ไม่ระบุผู้สำรวจ';
                 const projectName = project.projectName || 'ไม่ระบุโครงการ';
-                if (!projectGroups[projectName]) {
-                    projectGroups[projectName] = [];
+                
+                if (!surveyorGroups[surveyorName]) {
+                    surveyorGroups[surveyorName] = {};
                 }
-                projectGroups[projectName].push(project);
+                
+                if (!surveyorGroups[surveyorName][projectName]) {
+                    surveyorGroups[surveyorName][projectName] = [];
+                }
+                
+                surveyorGroups[surveyorName][projectName].push(project);
             });
 
-            Object.keys(projectGroups).forEach(projectName => {
-                const projects = projectGroups[projectName];
-                const firstProject = projects[0];
-                const pointCount = projects.length;
+            Object.keys(surveyorGroups).forEach(surveyorName => {
+                const projects = surveyorGroups[surveyorName];
+                const totalPoints = Object.values(projects).reduce((sum, projectPoints) => sum + projectPoints.length, 0);
+                const projectCount = Object.keys(projects).length;
                 
-                const statusItem = document.createElement('div');
-                statusItem.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
-                statusItem.innerHTML = `
-                    <div>
-                        <p class="font-medium">${projectName}</p>
-                        <p class="text-sm text-gray-600">${pointCount} จุดสำรวจ</p>
+                // Create surveyor header
+                const surveyorItem = document.createElement('div');
+                surveyorItem.className = 'border border-gray-200 rounded-lg overflow-hidden';
+                
+                const surveyorHeader = document.createElement('div');
+                surveyorHeader.className = 'project-item flex items-center justify-between p-4 bg-blue-50 border-b';
+                surveyorHeader.onclick = () => toggleProjectDetails(surveyorName);
+                surveyorHeader.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-user text-blue-600"></i>
+                        <div>
+                            <p class="font-semibold text-gray-800">${surveyorName}</p>
+                            <p class="text-sm text-gray-600">${projectCount} โครงการ, ${totalPoints} จุดสำรวจ</p>
+                        </div>
                     </div>
-                    <select onchange="updateProjectGroupStatus('${projectName}', this.value)" class="px-3 py-1 border rounded-lg text-sm">
-                        <option value="ยังไม่เขียนผัง" ${firstProject.status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
-                        <option value="เขียนผังแล้ว" ${firstProject.status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
-                    </select>
+                    <i class="fas fa-chevron-down text-gray-400 transform transition-transform" id="chevron-${surveyorName.replace(/\s+/g, '-')}"></i>
                 `;
-                statusList.appendChild(statusItem);
+                
+                // Create project details container
+                const projectDetails = document.createElement('div');
+                projectDetails.className = 'project-details';
+                projectDetails.id = `details-${surveyorName.replace(/\s+/g, '-')}`;
+                
+                // Add projects for this surveyor
+                Object.keys(projects).forEach(projectName => {
+                    const projectPoints = projects[projectName];
+                    const firstProject = projectPoints[0];
+                    
+                    const projectItem = document.createElement('div');
+                    projectItem.className = 'surveyor-project-item flex items-center justify-between p-3 mx-4 my-2 rounded-lg';
+                    projectItem.innerHTML = `
+                        <div>
+                            <p class="font-medium text-gray-800">${projectName}</p>
+                            <p class="text-sm text-gray-600">${projectPoints.length} จุดสำรวจ</p>
+                        </div>
+                        <select onchange="updateProjectGroupStatus('${projectName}', this.value)" class="px-3 py-1 border rounded-lg text-sm">
+                            <option value="ยังไม่เขียนผัง" ${firstProject.status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
+                            <option value="เขียนผังแล้ว" ${firstProject.status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
+                        </select>
+                    `;
+                    projectDetails.appendChild(projectItem);
+                });
+                
+                surveyorItem.appendChild(surveyorHeader);
+                surveyorItem.appendChild(projectDetails);
+                statusList.appendChild(surveyorItem);
             });
         }
 
@@ -1206,5 +1300,5 @@
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'989e2ffbf674a1c2',t:'MTc1OTY4MDYwOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98a3686ec7cea1c2',t:'MTc1OTczNTM0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
