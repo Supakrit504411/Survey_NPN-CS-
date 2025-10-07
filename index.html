@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบสำรวจเสาไฟฟ้า PEA</title>
+    <title>SURVEY PEA NPN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -987,48 +987,48 @@
         }
 
         // Populate dropdown menus
-        function populateDropdowns() {
-            const dropdowns = {
-                'pole-type': options.poleTypes || [],
-                'equipment': options.equipment || [],
-                'pole-head': options.poleHeads || [],
-                'guy-wire': options.guyWires || []
-            };
+function populateDropdowns() {
+    const dropdowns = {
+        'pole-type': options.poleTypes || [],
+        'equipment': options.equipment || [],
+        'pole-head': options.poleHeads || [],
+        'guy-wire': options.guyWires || []
+    };
 
-            Object.keys(dropdowns).forEach(id => {
-                const select = document.getElementById(id);
-                if (select) {
-                    select.innerHTML = '<option value="">เลือก...</option>';
-                    
-                    const optionsList = dropdowns[id];
-                    optionsList.forEach(option => {
-                        if (option && option.trim()) {
-                            const optionElement = document.createElement('option');
-                            optionElement.value = option.trim();
-                            optionElement.textContent = option.trim();
-                            select.appendChild(optionElement);
-                        }
-                    });
+    Object.keys(dropdowns).forEach(id => {
+        const select = document.getElementById(id);
+        if (select) {
+            select.innerHTML = '<option value="">เลือก...</option>';
+            
+            const optionsList = dropdowns[id];
+            optionsList.forEach(option => {
+                if (option && option.trim()) {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option.trim();
+                    optionElement.textContent = option.trim();
+                    select.appendChild(optionElement);
                 }
             });
         }
+    });
+}
 
         // Populate main surveyor select
-        function populateSurveyorSelect() {
-            const select = document.getElementById('main-surveyor-select');
-            if (select && options.surveyors) {
-                select.innerHTML = '<option value="">เลือกผู้สำรวจ</option>';
-                
-                options.surveyors.forEach(surveyor => {
-                    if (surveyor && surveyor.trim()) {
-                        const option = document.createElement('option');
-                        option.value = surveyor.trim();
-                        option.textContent = surveyor.trim();
-                        select.appendChild(option);
-                    }
-                });
+function populateSurveyorSelect() {
+    const select = document.getElementById('main-surveyor-select');
+    if (select && options.surveyors) {
+        select.innerHTML = '<option value="">เลือกผู้สำรวจ</option>';
+        
+        options.surveyors.forEach(surveyor => {
+            if (surveyor && surveyor.trim()) {
+                const option = document.createElement('option');
+                option.value = surveyor.trim();
+                option.textContent = surveyor.trim();
+                select.appendChild(option);
             }
-        }
+        });
+    }
+}
 
         // Pin at center (for mobile)
         function pinAtCenter() {
