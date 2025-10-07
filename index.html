@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SURVEY PEA NPN</title>
+    <title>ระบบสำรวจเสาไฟฟ้า PEA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -413,6 +413,50 @@
             text-align: center !important;
         }
         
+        /* Fullscreen mode styles */
+        .fullscreen-mode {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            z-index: 9999 !important;
+            background: white !important;
+            overflow-y: auto !important;
+            padding: 20px !important;
+        }
+        
+        /* Map image modal z-index override for fullscreen mode */
+        .fullscreen-mode ~ #map-image-modal {
+            z-index: 19999 !important;
+        }
+        
+        #map-image-modal {
+            z-index: 10001 !important;
+        }
+        
+        .fullscreen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+        
+        .fullscreen-table-container {
+            max-height: calc(100vh - 200px) !important;
+            overflow-y: auto !important;
+        }
+        
+        .fullscreen-mode .desktop-table {
+            display: block !important;
+        }
+        
+        .fullscreen-mode .mobile-card {
+            display: none !important;
+        }
+        
         @media (max-width: 768px) {
             .distance-label div {
                 font-size: 12px !important;
@@ -452,31 +496,31 @@
     <!-- Dashboard Tab -->
     <div id="dashboard-tab" class="hidden p-4">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <div class="card-gradient p-4 rounded-lg shadow-md">
+            <div class="p-4 rounded-lg shadow-md" style="background-color: #b0bec5;">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">โครงการทั้งหมด</p>
-                        <p class="text-2xl font-bold text-blue-600" id="total-projects">0</p>
+                        <p class="text-sm text-white">โครงการทั้งหมด</p>
+                        <p class="text-2xl font-bold text-white" id="total-projects">0</p>
                     </div>
-                    <i class="fas fa-project-diagram text-3xl text-blue-400"></i>
+                    <i class="fas fa-project-diagram text-3xl text-white opacity-80"></i>
                 </div>
             </div>
-            <div class="card-gradient p-4 rounded-lg shadow-md">
+            <div class="p-4 rounded-lg shadow-md" style="background-color: #b0bec5;">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">ผู้สำรวจทั้งหมด</p>
-                        <p class="text-2xl font-bold text-green-600" id="total-surveyors">0</p>
+                        <p class="text-sm text-white">ผู้สำรวจทั้งหมด</p>
+                        <p class="text-2xl font-bold text-white" id="total-surveyors">0</p>
                     </div>
-                    <i class="fas fa-users text-3xl text-green-400"></i>
+                    <i class="fas fa-users text-3xl text-white opacity-80"></i>
                 </div>
             </div>
-            <div class="card-gradient p-4 rounded-lg shadow-md">
+            <div class="p-4 rounded-lg shadow-md" style="background-color: #b0bec5;">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-gray-600">จุดสำรวจทั้งหมด</p>
-                        <p class="text-2xl font-bold text-purple-600" id="total-points">0</p>
+                        <p class="text-sm text-white">จุดสำรวจทั้งหมด</p>
+                        <p class="text-2xl font-bold text-white" id="total-points">0</p>
                     </div>
-                    <i class="fas fa-map-pin text-3xl text-purple-400"></i>
+                    <i class="fas fa-map-pin text-3xl text-white opacity-80"></i>
                 </div>
             </div>
         </div>
@@ -519,12 +563,17 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="text-lg font-semibold mb-4">สถานะโครงการ</h3>
+        <div class="bg-white rounded-lg shadow-md p-4" id="project-status-container">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">สถานะโครงการ</h3>
+                <button onclick="toggleFullscreen()" id="fullscreen-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                    <i class="fas fa-expand mr-2"></i>ขยายตาราง
+                </button>
+            </div>
             
             <!-- Desktop Table -->
-            <div class="desktop-table table-container">
-                <div class="max-h-80 overflow-y-auto border border-gray-300 rounded-lg">
+            <div class="desktop-table table-container" id="table-container">
+                <div class="max-h-80 overflow-y-auto border border-gray-300 rounded-lg" id="table-scroll-container">
                     <table class="w-full border-collapse table-fixed">
                         <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
                             <tr>
@@ -532,6 +581,7 @@
                                 <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-48 bg-gray-100">ชื่อผู้สำรวจ</th>
                                 <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-64 bg-gray-100">โครงการ</th>
                                 <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-32 bg-gray-100">ระยะทางรวม (เมตร)</th>
+                                <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-24 bg-gray-100">ภาพแผนที่</th>
                                 <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-40 bg-gray-100">สถานะ</th>
                             </tr>
                         </thead>
@@ -609,6 +659,21 @@
             <!-- Center Crosshair -->
             <div class="center-crosshair hidden" id="center-crosshair">
                 <i class="fas fa-plus"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Image Modal -->
+    <div id="map-image-modal" class="modal fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-semibold">ภาพแผนที่โครงการ</h3>
+                <button onclick="closeMapImageModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6" id="map-image-content">
+                <!-- Image content will be loaded here -->
             </div>
         </div>
     </div>
@@ -698,6 +763,7 @@
         const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwZB9R8J8lToURW_BwXhfLIRAAbK0jI90tOrwhxLuoWqEk4lKzDqxKjtMxkwU2NeHObwQ/exec';
         const SHEET_ID = '1kf_xzfTOx98T5f_9grznU3U0U1MqA87lt_Dl2hGSyAw';
         const FOLDER_ID = '1AmI2prj8Bma9gVBb0oLq7uwkr2D1aERZ';
+        const MAP_IMAGES_FOLDER_ID = '1-vLEQVWRGEuNtQkZmFvwycsFkhLfRlTi';
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -1237,6 +1303,137 @@
             }
         }
 
+        // Capture map screenshot using html2canvas
+        async function captureMapScreenshot(projectName) {
+            try {
+                // Load html2canvas dynamically if not available
+                if (typeof html2canvas === 'undefined') {
+                    await loadHtml2Canvas();
+                }
+                
+                const mapElement = document.getElementById('map');
+                
+                // Capture the map element
+                const canvas = await html2canvas(mapElement, {
+                    useCORS: true,
+                    allowTaint: true,
+                    scale: 1,
+                    logging: false,
+                    width: mapElement.offsetWidth,
+                    height: mapElement.offsetHeight
+                });
+                
+                // Convert to base64
+                const imageData = canvas.toDataURL('image/png').split(',')[1];
+                
+                return imageData;
+            } catch (error) {
+                console.error('Error capturing map screenshot:', error);
+                
+                // Fallback to simple canvas if html2canvas fails
+                try {
+                    const mapElement = document.getElementById('map');
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = mapElement.offsetWidth;
+                    canvas.height = mapElement.offsetHeight;
+                    
+                    // Fill with a placeholder color
+                    ctx.fillStyle = '#e5e7eb';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Add text indicating this is a map snapshot
+                    ctx.fillStyle = '#374151';
+                    ctx.font = '16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`แผนที่โครงการ: ${projectName}`, canvas.width / 2, canvas.height / 2);
+                    ctx.fillText(`จำนวนจุดสำรวจ: ${surveyPoints.length} จุด`, canvas.width / 2, canvas.height / 2 + 30);
+                    
+                    // Convert to base64
+                    const imageData = canvas.toDataURL('image/png').split(',')[1];
+                    
+                    return imageData;
+                } catch (fallbackError) {
+                    console.error('Fallback capture also failed:', fallbackError);
+                    return null;
+                }
+            }
+        }
+
+        // Load html2canvas library dynamically
+        function loadHtml2Canvas() {
+            return new Promise((resolve, reject) => {
+                if (typeof html2canvas !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        // Save map image to Google Drive
+        async function saveMapImage(projectName, imageData) {
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'saveMapImage');
+                formData.append('sheetId', SHEET_ID);
+                formData.append('projectName', projectName);
+                formData.append('imageData', imageData);
+                formData.append('fileName', `${projectName}_map.png`);
+                formData.append('mimeType', 'image/png');
+                formData.append('folderId', MAP_IMAGES_FOLDER_ID);
+
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                if (result.success && result.imageUrl) {
+                    // Update project records with image URL
+                    await updateProjectImageUrl(projectName, result.imageUrl);
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Error saving map image:', error);
+                return false;
+            }
+        }
+
+        // Update project image URL in sheet
+        async function updateProjectImageUrl(projectName, imageUrl) {
+            try {
+                const formData = new URLSearchParams();
+                formData.append('action', 'updateProjectImageUrl');
+                formData.append('sheetId', SHEET_ID);
+                formData.append('projectName', projectName);
+                formData.append('imageUrl', imageUrl);
+
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                return result.success;
+            } catch (error) {
+                console.error('Error updating project image URL:', error);
+                return false;
+            }
+        }
+
         // Validate form
         function validateForm() {
             const required = ['pole-type'];
@@ -1390,7 +1587,7 @@
             }
 
             Swal.fire({
-                title: 'กำลังบันทึกข้อมูล...',
+                title: 'กำลังบันทึกข้อมูลและจับภาพแผนที่...',
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -1398,11 +1595,21 @@
             });
 
             try {
+                // Capture map screenshot first
+                const projectName = document.getElementById('project-name-input').value.trim();
+                const imageData = await captureMapScreenshot(projectName);
+                
+                // Save survey data
                 await saveSurveyData();
+                
+                // Save map image if captured successfully
+                if (imageData && isOnline) {
+                    await saveMapImage(projectName, imageData);
+                }
                 
                 Swal.fire({
                     title: 'บันทึกสำเร็จ!',
-                    text: `บันทึกข้อมูล ${surveyPoints.length} จุดเรียบร้อยแล้ว`,
+                    text: `บันทึกข้อมูล ${surveyPoints.length} จุดและภาพแผนที่เรียบร้อยแล้ว`,
                     icon: 'success',
                     position: 'top'
                 });
@@ -1560,14 +1767,23 @@
             document.getElementById('total-surveyors').textContent = uniqueSurveyors.length;
             document.getElementById('total-points').textContent = totalPoints;
 
-            // Group by surveyor
+            // Group by surveyor and count unique projects
             const surveyorStats = {};
+            const surveyorProjects = {};
+            
             allProjects.forEach(project => {
                 const surveyor = project.surveyorName || 'ไม่ระบุ';
-                if (!surveyorStats[surveyor]) {
-                    surveyorStats[surveyor] = 0;
+                const projectName = project.projectName || 'ไม่ระบุโครงการ';
+                
+                if (!surveyorProjects[surveyor]) {
+                    surveyorProjects[surveyor] = new Set();
                 }
-                surveyorStats[surveyor]++;
+                surveyorProjects[surveyor].add(projectName);
+            });
+            
+            // Count unique projects per surveyor
+            Object.keys(surveyorProjects).forEach(surveyor => {
+                surveyorStats[surveyor] = surveyorProjects[surveyor].size;
             });
 
             // Update surveyor cards
@@ -1576,18 +1792,20 @@
 
             Object.keys(surveyorStats).forEach(surveyor => {
                 const count = surveyorStats[surveyor];
-                const percentage = totalPoints > 0 ? ((count / totalPoints) * 100).toFixed(1) : 0;
+                const totalUniqueProjects = uniqueProjects.length;
+                const percentage = totalUniqueProjects > 0 ? ((count / totalUniqueProjects) * 100).toFixed(1) : 0;
                 
                 const card = document.createElement('div');
-                card.className = 'surveyor-card card-gradient p-4 rounded-lg shadow-md';
+                card.className = 'surveyor-card p-4 rounded-lg shadow-md';
+                card.style.backgroundColor = '#b0bec5';
                 card.innerHTML = `
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-sm text-gray-600">${surveyor}</p>
-                            <p class="text-xl font-bold text-green-600">${count} จุด</p>
-                            <p class="text-xs text-gray-500">${percentage}%</p>
+                            <p class="text-sm text-white">${surveyor}</p>
+                            <p class="text-xl font-bold text-white">${count} โครงการ</p>
+                            <p class="text-xs text-white opacity-80">${percentage}%</p>
                         </div>
-                        <i class="fas fa-user text-2xl text-green-400"></i>
+                        <i class="fas fa-user text-2xl text-white opacity-80"></i>
                     </div>
                 `;
                 surveyorCardsContainer.appendChild(card);
@@ -1728,6 +1946,11 @@
                     <td class="px-4 py-3 text-sm">${group.surveyorName}</td>
                     <td class="px-4 py-3 text-sm">${group.projectName}</td>
                     <td class="px-4 py-3 text-sm text-right">${totalDistance.toFixed(0)}</td>
+                    <td class="px-2 py-3 text-sm text-center">
+                        <button onclick="viewMapImage('${group.projectName}')" class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs">
+                            <i class="fas fa-image mr-1"></i>ดูภาพ
+                        </button>
+                    </td>
                     <td class="px-2 py-3 text-sm">
                         <div class="flex flex-col space-y-2">
                             <select onchange="updateProjectGroupStatus('${group.projectName}', this.value)" class="w-full px-2 py-1 border rounded text-xs">
@@ -1764,9 +1987,14 @@
                                 <option value="เขียนผังแล้ว" ${status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
                             </select>
                         </div>
-                        <button onclick="exportProjectKML('${group.projectName}')" class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-                            <i class="fas fa-download mr-2"></i>Export KML
-                        </button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="viewMapImage('${group.projectName}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
+                                <i class="fas fa-image mr-1"></i>ดูภาพ
+                            </button>
+                            <button onclick="exportProjectKML('${group.projectName}')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium">
+                                <i class="fas fa-download mr-1"></i>Export KML
+                            </button>
+                        </div>
                     </div>
                 `;
                 mobileCards.appendChild(card);
@@ -1913,6 +2141,112 @@
                 position: 'top'
             });
         }
+
+        // View map image
+        async function viewMapImage(projectName) {
+            const modal = document.getElementById('map-image-modal');
+            const content = document.getElementById('map-image-content');
+            const projectContainer = document.getElementById('project-status-container');
+            
+            // Check if in fullscreen mode and adjust z-index accordingly
+            if (projectContainer.classList.contains('fullscreen-mode')) {
+                modal.style.zIndex = '19999';
+            } else {
+                modal.style.zIndex = '10001';
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            content.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-2"></i><p class="text-gray-500">กำลังโหลดภาพ...</p></div>';
+            
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?action=getProjectImageUrl&sheetId=${SHEET_ID}&projectName=${encodeURIComponent(projectName)}&t=${Date.now()}`);
+                const data = await response.json();
+                
+                if (data.success && data.imageUrl) {
+                    content.innerHTML = `
+                        <div>
+                            <h4 class="text-lg font-semibold mb-3 text-center">โครงการ: ${projectName}</h4>
+                            <div class="text-center">
+                                <img src="${data.imageUrl}" alt="ภาพแผนที่โครงการ ${projectName}" 
+                                     class="max-w-full h-auto rounded-lg shadow-lg mx-auto"
+                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'text-center\\'><i class=\\'fas fa-image text-6xl text-gray-300 mb-4\\'></i><p class=\\'text-gray-500\\'>ไม่สามารถโหลดภาพได้</p></div>';">
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="text-center">
+                            <i class="fas fa-image text-6xl text-gray-300 mb-4"></i>
+                            <p class="text-gray-500">ไม่พบภาพแผนที่สำหรับโครงการนี้</p>
+                            <p class="text-sm text-gray-400 mt-2">ภาพจะถูกสร้างขึ้นเมื่อบันทึกข้อมูลการสำรวจ</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading map image:', error);
+                content.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-triangle text-6xl text-red-300 mb-4"></i>
+                        <p class="text-red-500">เกิดข้อผิดพลาดในการโหลดภาพ</p>
+                        <p class="text-sm text-gray-400 mt-2">กรุณาลองใหม่อีกครั้ง</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Close map image modal
+        function closeMapImageModal() {
+            const modal = document.getElementById('map-image-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            // Reset z-index to default
+            modal.style.zIndex = '';
+        }
+
+        // Toggle fullscreen mode
+        function toggleFullscreen() {
+            const projectContainer = document.getElementById('project-status-container');
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const tableScrollContainer = document.getElementById('table-scroll-container');
+            
+            if (projectContainer.classList.contains('fullscreen-mode')) {
+                // Exit fullscreen
+                projectContainer.classList.remove('fullscreen-mode');
+                fullscreenBtn.innerHTML = '<i class="fas fa-expand mr-2"></i>ขยายตาราง';
+                
+                // Reset table height
+                tableScrollContainer.style.maxHeight = '320px';
+                
+                // Remove fullscreen header
+                const existingHeader = projectContainer.querySelector('.fullscreen-header');
+                if (existingHeader) {
+                    existingHeader.remove();
+                }
+            } else {
+                // Enter fullscreen
+                projectContainer.classList.add('fullscreen-mode');
+                fullscreenBtn.innerHTML = '<i class="fas fa-compress mr-2"></i>ย่อตาราง';
+                
+                // Set table to use full height
+                tableScrollContainer.style.maxHeight = 'calc(100vh - 200px)';
+                
+                // Add fullscreen header
+                const existingHeader = projectContainer.querySelector('.fullscreen-header');
+                if (!existingHeader) {
+                    const header = document.createElement('div');
+                    header.className = 'fullscreen-header';
+                    header.innerHTML = `
+                        <h2 class="text-2xl font-bold text-gray-800">สถานะโครงการ - โหมดเต็มจอ</h2>
+                        <button onclick="toggleFullscreen()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                            <i class="fas fa-compress mr-2"></i>ย่อตาราง
+                        </button>
+                    `;
+                    projectContainer.insertBefore(header, projectContainer.firstChild);
+                }
+            }
+        }
     </script>
 
     <!-- Developer Credit -->
@@ -1924,5 +2258,5 @@
             </p>
         </div>
     </footer>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ad447e0219fd9e',t:'MTc1OTgzODczNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98af7aa4f325d02c',t:'MTc1OTg2MTkyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
