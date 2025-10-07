@@ -29,10 +29,16 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .modal {
-            z-index: 2000;
+            z-index: 10000;
         }
         .modal-backdrop {
-            z-index: 1999;
+            z-index: 9999;
+        }
+        .swal2-container {
+            z-index: 20000 !important;
+        }
+        .swal2-popup {
+            z-index: 20001 !important;
         }
         .numbered-marker {
             background: #3b82f6;
@@ -518,20 +524,22 @@
             
             <!-- Desktop Table -->
             <div class="desktop-table table-container">
-                <table class="w-full border-collapse border border-gray-300 table-fixed">
-                    <thead>
-                        <tr class="bg-gray-100">
-                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold w-8">ลำดับ</th>
-                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold w-64">ชื่อผู้สำรวจ</th>
-                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold w-72">โครงการ</th>
-                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold w-32">ระยะทางรวม (เมตร)</th>
-                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold w-32">สถานะ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="project-table-body">
-                        <!-- Table rows will be populated here -->
-                    </tbody>
-                </table>
+                <div class="max-h-80 overflow-y-auto border border-gray-300 rounded-lg">
+                    <table class="w-full border-collapse table-fixed">
+                        <thead class="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                            <tr>
+                                <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-16 bg-gray-100">ลำดับ</th>
+                                <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-48 bg-gray-100">ชื่อผู้สำรวจ</th>
+                                <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-64 bg-gray-100">โครงการ</th>
+                                <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-32 bg-gray-100">ระยะทางรวม (เมตร)</th>
+                                <th class="border-b border-gray-300 px-4 py-3 text-left text-sm font-semibold w-40 bg-gray-100">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="project-table-body">
+                            <!-- Table rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
             
             <!-- Mobile Cards -->
@@ -584,6 +592,8 @@
             <div class="distance-info" id="distance-info">
                 <div class="text-xs text-gray-600">ระยะทางจากจุดล่าสุด</div>
                 <div class="font-bold text-blue-600" id="distance-text">-</div>
+                <div class="text-xs text-gray-600 mt-1">ระยะรวม</div>
+                <div class="font-bold text-green-600" id="total-distance-text">0 เมตร</div>
             </div>
             <button onclick="getCurrentLocation()" class="current-location-btn" title="ตำแหน่งปัจจุบัน">
                 <i class="fas fa-crosshairs"></i>
@@ -650,7 +660,7 @@
                 <button onclick="savePoint()" class="btn-primary text-white px-4 py-3 rounded-lg font-medium">
                     <i class="fas fa-plus mr-2"></i>เพิ่มจุดสำรวจ
                 </button>
-                <button onclick="saveAndFinish()" class="btn-success text-white px-4 py-3 rounded-lg font-medium">
+                <button onclick="finishSurveyFromModal()" class="btn-success text-white px-4 py-3 rounded-lg font-medium">
                     <i class="fas fa-check mr-2"></i>เสร็จสิ้นการสำรวจ
                 </button>
                 <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-3 rounded-lg font-medium">
@@ -1184,6 +1194,41 @@
             }
         }
 
+        // Finish survey from modal
+        function finishSurveyFromModal() {
+            if (validateForm()) {
+                addPointToSurvey();
+                closeModal();
+                clearForm();
+                // Remove measure line and return to survey view
+                if (measureLine) {
+                    map.removeLayer(measureLine);
+                    measureLine = null;
+                }
+                if (distanceLabel) {
+                    map.removeLayer(distanceLabel);
+                    distanceLabel = null;
+                }
+                // Stop adding points but keep all markers and data
+                isAddingPoint = false;
+                document.getElementById('start-btn').classList.remove('hidden');
+                document.getElementById('finish-btn').classList.remove('hidden');
+                document.getElementById('clear-btn').classList.remove('hidden');
+                
+                // Hide mobile controls
+                document.getElementById('mobile-pin-btn').classList.add('hidden');
+                document.getElementById('center-crosshair').classList.add('hidden');
+                
+                // Show completion message
+                Swal.fire({
+                    title: 'เสร็จสิ้นการสำรวจ!',
+                    text: `ได้ทำการปักหมุด ${surveyPoints.length} จุดแล้ว คุณสามารถดูข้อมูลทั้งหมดบนแผนที่`,
+                    icon: 'success',
+                    position: 'center'
+                });
+            }
+        }
+
         // Validate form
         function validateForm() {
             const required = ['pole-type'];
@@ -1277,6 +1322,24 @@
         // Update point counter
         function updatePointCounter() {
             document.getElementById('point-counter').textContent = surveyPoints.length;
+            updateTotalDistance();
+        }
+
+        // Update total distance
+        function updateTotalDistance() {
+            if (surveyPoints.length < 2) {
+                document.getElementById('total-distance-text').textContent = '0 เมตร';
+                return;
+            }
+
+            let totalDistance = 0;
+            for (let i = 0; i < surveyPoints.length - 1; i++) {
+                const point1 = surveyPoints[i];
+                const point2 = surveyPoints[i + 1];
+                totalDistance += calculateDistance(point1.lat, point1.lng, point2.lat, point2.lng);
+            }
+
+            document.getElementById('total-distance-text').textContent = `${totalDistance.toFixed(0)} เมตร`;
         }
 
         // Clear form
@@ -1321,7 +1384,6 @@
             Swal.fire({
                 title: 'กำลังบันทึกข้อมูล...',
                 allowOutsideClick: false,
-                position: 'top',
                 didOpen: () => {
                     Swal.showLoading();
                 }
@@ -1429,6 +1491,7 @@
             document.getElementById('main-surveyor-select').disabled = false;
             document.getElementById('project-name-input').disabled = false;
             document.getElementById('distance-text').textContent = '-';
+            document.getElementById('total-distance-text').textContent = '0 เมตร';
         }
 
         // Clear survey
@@ -1616,22 +1679,24 @@
             mobileCards.innerHTML = '';
 
             if (filteredProjects.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" class="border border-gray-300 px-4 py-8 text-center text-gray-500">ไม่มีข้อมูลโครงการ</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">ไม่มีข้อมูลโครงการ</td></tr>';
                 mobileCards.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีข้อมูลโครงการ</p>';
                 return;
             }
 
-            // Group by project
+            // Group by project and timestamp to allow duplicate project names
             const projectGroups = {};
             filteredProjects.forEach(project => {
                 const surveyorName = project.surveyorName || 'ไม่ระบุผู้สำรวจ';
                 const projectName = project.projectName || 'ไม่ระบุโครงการ';
-                const key = `${surveyorName}|${projectName}`;
+                const timestamp = project.timestamp || new Date().toISOString();
+                const key = `${surveyorName}|${projectName}|${timestamp.split('T')[0]}`;
                 
                 if (!projectGroups[key]) {
                     projectGroups[key] = {
                         surveyorName,
                         projectName,
+                        timestamp,
                         points: []
                     };
                 }
@@ -1648,13 +1713,13 @@
                 
                 // Desktop table row
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
+                row.className = 'hover:bg-gray-50 border-b border-gray-200';
                 row.innerHTML = `
-                    <td class="border border-gray-300 px-4 py-3 text-sm">${rowIndex}</td>
-                    <td class="border border-gray-300 px-4 py-3 text-sm">${group.surveyorName}</td>
-                    <td class="border border-gray-300 px-4 py-3 text-sm">${group.projectName}</td>
-                    <td class="border border-gray-300 px-4 py-3 text-sm text-right">${totalDistance.toFixed(0)}</td>
-                    <td class="border border-gray-300 px-2 py-3 text-sm">
+                    <td class="px-4 py-3 text-sm">${rowIndex}</td>
+                    <td class="px-4 py-3 text-sm">${group.surveyorName}</td>
+                    <td class="px-4 py-3 text-sm">${group.projectName}</td>
+                    <td class="px-4 py-3 text-sm text-right">${totalDistance.toFixed(0)}</td>
+                    <td class="px-2 py-3 text-sm">
                         <div class="flex flex-col space-y-2">
                             <select onchange="updateProjectGroupStatus('${group.projectName}', this.value)" class="w-full px-2 py-1 border rounded text-xs">
                                 <option value="ยังไม่เขียนผัง" ${status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
@@ -1840,5 +1905,15 @@
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98acd47317505f32',t:'MTc1OTgzNDE0Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+
+    <!-- Developer Credit -->
+    <footer class="bg-gray-800 text-white py-4 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm">
+                พัฒนาโดย: <span class="font-semibold">นายศุภกฤษ ทะวัง</span> 
+                ตำแหน่ง <span class="font-semibold">ชผ.บส.กฟจ.นพ.</span>
+            </p>
+        </div>
+    </footer>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98acff6be559fd9e',t:'MTc1OTgzNTkwNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
