@@ -2167,7 +2167,13 @@
                 if (data.success && data.imageUrl) {
                     content.innerHTML = `
                         <div>
-                            <h4 class="text-lg font-semibold mb-3 text-center">โครงการ: ${projectName}</h4>
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="text-lg font-semibold">โครงการ: ${projectName}</h4>
+                                <button onclick="downloadMapImage('${data.imageUrl}', '${projectName}')" 
+                                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                                    <i class="fas fa-download mr-2"></i>Download
+                                </button>
+                            </div>
                             <div class="text-center">
                                 <img src="${data.imageUrl}" alt="ภาพแผนที่โครงการ ${projectName}" 
                                      class="max-w-full h-auto rounded-lg shadow-lg mx-auto"
@@ -2193,6 +2199,57 @@
                         <p class="text-sm text-gray-400 mt-2">กรุณาลองใหม่อีกครั้ง</p>
                     </div>
                 `;
+            }
+        }
+
+        // Download map image
+        async function downloadMapImage(imageUrl, projectName) {
+            try {
+                Swal.fire({
+                    title: 'กำลังดาวน์โหลด...',
+                    text: 'กรุณารอสักครู่',
+                    allowOutsideClick: false,
+                    position: 'top',
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Fetch the image
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Clean project name for filename
+                const cleanProjectName = projectName.replace(/[^a-zA-Z0-9ก-๙\s]/g, '_');
+                a.download = `โครงการ_${cleanProjectName}.jpg`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                Swal.fire({
+                    title: 'ดาวน์โหลดสำเร็จ!',
+                    text: `ไฟล์ภาพโครงการ "${projectName}" ถูกดาวน์โหลดแล้ว`,
+                    icon: 'success',
+                    timer: 2000,
+                    showConfirmButton: false,
+                    position: 'top'
+                });
+                
+            } catch (error) {
+                console.error('Error downloading image:', error);
+                Swal.fire({
+                    title: 'เกิดข้อผิดพลาด',
+                    text: 'ไม่สามารถดาวน์โหลดภาพได้ กรุณาลองใหม่อีกครั้ง',
+                    icon: 'error',
+                    position: 'top'
+                });
             }
         }
 
@@ -2258,5 +2315,5 @@
             </p>
         </div>
     </footer>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98af7aa4f325d02c',t:'MTc1OTg2MTkyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98af867b3537d02c',t:'MTc1OTg2MjQwOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
