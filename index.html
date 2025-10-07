@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SURVEY PEA NPN</title>
+    <title>ระบบสำรวจเสาไฟฟ้า PEA</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -111,6 +111,115 @@
             background: #f8fafc;
             border-left: 3px solid #3b82f6;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .map-container {
+                height: calc(100vh - 140px);
+            }
+            
+            .distance-info {
+                top: 5px;
+                right: 5px;
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+            
+            .connection-status {
+                top: 60px;
+                right: 5px;
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+            
+            .nav-tab {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .surveyor-card {
+                min-width: 100%;
+                max-width: 100%;
+            }
+            
+            .numbered-marker {
+                width: 25px;
+                height: 25px;
+                font-size: 12px;
+            }
+            
+            .modal .bg-white {
+                margin: 10px;
+                max-height: calc(100vh - 40px);
+            }
+            
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .mobile-table {
+                min-width: 600px;
+            }
+            
+            .mobile-card {
+                display: block;
+            }
+            
+            .desktop-table {
+                display: none;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-card {
+                display: none;
+            }
+            
+            .desktop-table {
+                display: table;
+            }
+        }
+        
+        /* iPhone 6.1" and 6.7" specific adjustments */
+        @media (max-width: 414px) {
+            .nav-tab {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+            
+            .card-gradient {
+                padding: 12px;
+            }
+            
+            .btn-primary, .btn-success, .btn-warning, .btn-danger {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            
+            .distance-info {
+                font-size: 9px;
+                padding: 4px 6px;
+            }
+            
+            .connection-status {
+                font-size: 9px;
+                padding: 4px 6px;
+            }
+        }
+        
+        /* Very small screens */
+        @media (max-width: 375px) {
+            .nav-tab {
+                padding: 4px 6px;
+                font-size: 10px;
+            }
+            
+            .modal .bg-white {
+                margin: 5px;
+                max-height: calc(100vh - 20px);
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -126,7 +235,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-lg font-bold text-gray-800">
                     <i class="fas fa-bolt text-blue-600 mr-2"></i>
-                    SURVEY PEA NPN
+                    ระบบสำรวจเสาไฟฟ้า PEA
                 </h1>
                 <div class="flex space-x-2">
                     <button onclick="showTab('dashboard')" class="nav-tab px-3 py-2 rounded-lg text-sm font-medium" id="tab-dashboard">
@@ -182,6 +291,27 @@
 
         <div class="bg-white rounded-lg shadow-md p-4 mb-4">
             <h3 class="text-lg font-semibold mb-4">จัดการข้อมูล</h3>
+            
+            <!-- Filter Section -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">กรองตามผู้สำรวจ</label>
+                    <select id="surveyor-filter" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" onchange="applyFilters()">
+                        <option value="">ทั้งหมด</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ค้นหาโครงการ</label>
+                    <input type="text" id="project-search" placeholder="ชื่อโครงการ..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" oninput="applyFilters()">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="clearFilters()" class="w-full bg-gray-500 text-white px-4 py-3 rounded-lg font-medium">
+                        <i class="fas fa-times mr-2"></i>ล้างตัวกรอง
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Export Section -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button onclick="exportAllKML()" class="btn-primary text-white px-4 py-3 rounded-lg font-medium">
                     <i class="fas fa-download mr-2"></i>Export ไฟล์ KML ทั้งหมด
@@ -189,21 +319,36 @@
                 <button onclick="exportKML()" class="btn-success text-white px-4 py-3 rounded-lg font-medium">
                     <i class="fas fa-file-export mr-2"></i>Export KML ปัจจุบัน
                 </button>
-                <div class="relative">
-                    <select id="project-export-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="">เลือกโครงการ</option>
-                    </select>
-                    <button onclick="exportProjectKML()" class="btn-warning text-white px-4 py-2 rounded-lg font-medium mt-2 w-full">
-                        <i class="fas fa-file-download mr-2"></i>Export KML ตามโครงการ
-                    </button>
-                </div>
+                <button onclick="exportFilteredKML()" class="btn-warning text-white px-4 py-3 rounded-lg font-medium">
+                    <i class="fas fa-filter mr-2"></i>Export ข้อมูลที่กรอง
+                </button>
             </div>
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="text-lg font-semibold mb-4">สถานะโครงการ (จัดกลุ่มตามผู้สำรวจ)</h3>
-            <div class="space-y-3" id="project-status-list">
-                <!-- Project status items will be populated here -->
+            <h3 class="text-lg font-semibold mb-4">สถานะโครงการ</h3>
+            
+            <!-- Desktop Table -->
+            <div class="desktop-table table-container">
+                <table class="w-full border-collapse border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold">ลำดับ</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold">ชื่อผู้สำรวจ</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold">โครงการ</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold">ระยะทางรวม (เมตร)</th>
+                            <th class="border border-gray-300 px-4 py-3 text-left text-sm font-semibold">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="project-table-body">
+                        <!-- Table rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Mobile Cards -->
+            <div class="mobile-card space-y-3" id="project-mobile-cards">
+                <!-- Mobile cards will be populated here -->
             </div>
         </div>
     </div>
@@ -212,31 +357,33 @@
     <div id="survey-tab" class="relative">
         <!-- Control Panel -->
         <div class="bg-white shadow-md p-4">
-            <div class="flex flex-wrap gap-4 justify-between items-center">
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
+            <div class="space-y-4 md:space-y-0 md:flex md:flex-wrap md:gap-4 md:justify-between md:items-center">
+                <div class="space-y-3 md:space-y-0 md:flex md:items-center md:space-x-4">
+                    <div class="flex items-center justify-between md:justify-start md:space-x-2">
                         <span class="text-sm font-medium text-gray-700">จุดสำรวจ:</span>
                         <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-bold" id="point-counter">0</span>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-sm font-medium text-gray-700">ผู้สำรวจ:</label>
-                        <select id="main-surveyor-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[150px]">
-                            <option value="">เลือกผู้สำรวจ</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-sm font-medium text-gray-700">โครงการ:</label>
-                        <input type="text" id="project-name-input" placeholder="ชื่อโครงการ" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 min-w-[150px]">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 md:flex md:items-center md:space-x-4">
+                        <div class="flex flex-col md:flex-row md:items-center md:space-x-2">
+                            <label class="text-sm font-medium text-gray-700 mb-1 md:mb-0">ผู้สำรวจ:</label>
+                            <select id="main-surveyor-select" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 w-full md:min-w-[150px]">
+                                <option value="">เลือกผู้สำรวจ</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col md:flex-row md:items-center md:space-x-2">
+                            <label class="text-sm font-medium text-gray-700 mb-1 md:mb-0">โครงการ:</label>
+                            <input type="text" id="project-name-input" placeholder="ชื่อโครงการ" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 w-full md:min-w-[150px]">
+                        </div>
                     </div>
                 </div>
-                <div class="flex space-x-2">
-                    <button onclick="startSurvey()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium" id="start-btn">
+                <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
+                    <button onclick="startSurvey()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-medium w-full md:w-auto" id="start-btn">
                         <i class="fas fa-play mr-1"></i>เริ่มสำรวจ
                     </button>
-                    <button onclick="finishSurvey()" class="btn-success text-white px-4 py-2 rounded-lg text-sm font-medium hidden" id="finish-btn">
+                    <button onclick="finishSurvey()" class="btn-success text-white px-4 py-2 rounded-lg text-sm font-medium w-full md:w-auto hidden" id="finish-btn">
                         <i class="fas fa-save mr-1"></i>เสร็จสิ้น
                     </button>
-                    <button onclick="clearSurvey()" class="btn-danger text-white px-4 py-2 rounded-lg text-sm font-medium hidden" id="clear-btn">
+                    <button onclick="clearSurvey()" class="btn-danger text-white px-4 py-2 rounded-lg text-sm font-medium w-full md:w-auto hidden" id="clear-btn">
                         <i class="fas fa-trash mr-1"></i>ล้างข้อมูล
                     </button>
                 </div>
@@ -323,6 +470,7 @@
         let currentMarker = null;
         let options = {};
         let allProjects = [];
+        let filteredProjects = [];
         let isOnline = false;
         let measureLine = null;
         let distanceLabel = null;
@@ -1029,113 +1177,173 @@
                 surveyorCardsContainer.appendChild(card);
             });
 
-            // Update project status list and export dropdown
+            // Update filter dropdowns
+            updateFilterDropdowns();
+            
+            // Initialize filtered projects
+            filteredProjects = [...allProjects];
+            
+            // Update project status list
             updateProjectStatusList();
-            updateProjectExportDropdown();
         }
 
-        // Update project export dropdown
-        function updateProjectExportDropdown() {
-            const select = document.getElementById('project-export-select');
-            select.innerHTML = '<option value="">เลือกโครงการ</option>';
-
-            // Get unique project names
-            const projectNames = [...new Set(allProjects.map(p => p.projectName).filter(name => name))];
+        // Update filter dropdowns
+        function updateFilterDropdowns() {
+            const surveyorFilter = document.getElementById('surveyor-filter');
+            const uniqueSurveyors = [...new Set(allProjects.map(p => p.surveyorName).filter(name => name))];
             
-            projectNames.forEach(projectName => {
+            surveyorFilter.innerHTML = '<option value="">ทั้งหมด</option>';
+            uniqueSurveyors.forEach(surveyor => {
                 const option = document.createElement('option');
-                option.value = projectName;
-                option.textContent = projectName;
-                select.appendChild(option);
+                option.value = surveyor;
+                option.textContent = surveyor;
+                surveyorFilter.appendChild(option);
             });
         }
 
-        // Toggle project details
-        function toggleProjectDetails(surveyorName) {
-            const detailsElement = document.getElementById(`details-${surveyorName.replace(/\s+/g, '-')}`);
-            if (detailsElement) {
-                detailsElement.classList.toggle('expanded');
-            }
+        // Apply filters
+        function applyFilters() {
+            const surveyorFilter = document.getElementById('surveyor-filter').value;
+            const projectSearch = document.getElementById('project-search').value.toLowerCase();
+            
+            filteredProjects = allProjects.filter(project => {
+                const matchSurveyor = !surveyorFilter || project.surveyorName === surveyorFilter;
+                const matchProject = !projectSearch || (project.projectName && project.projectName.toLowerCase().includes(projectSearch));
+                return matchSurveyor && matchProject;
+            });
+            
+            updateProjectStatusList();
         }
 
-        // Update project status list (grouped by surveyor, then by project)
-        function updateProjectStatusList() {
-            const statusList = document.getElementById('project-status-list');
-            statusList.innerHTML = '';
+        // Clear filters
+        function clearFilters() {
+            document.getElementById('surveyor-filter').value = '';
+            document.getElementById('project-search').value = '';
+            filteredProjects = [...allProjects];
+            updateProjectStatusList();
+        }
 
-            if (allProjects.length === 0) {
-                statusList.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีข้อมูลโครงการ</p>';
+        // Export filtered KML
+        function exportFilteredKML() {
+            if (filteredProjects.length === 0) {
+                Swal.fire({
+                    title: 'ไม่มีข้อมูล',
+                    text: 'ไม่มีข้อมูลที่กรองแล้วสำหรับ Export',
+                    icon: 'warning'
+                });
                 return;
             }
 
-            // Group by surveyor first, then by project
-            const surveyorGroups = {};
-            allProjects.forEach(project => {
+            const kml = generateKML(filteredProjects, 'ข้อมูลที่กรองแล้ว');
+            downloadKML(kml, 'filtered_survey_data.kml');
+        }
+
+        // Calculate total distance for a project
+        function calculateProjectDistance(projectPoints) {
+            if (projectPoints.length < 2) return 0;
+            
+            // Sort points by point number to ensure correct order
+            const sortedPoints = projectPoints.sort((a, b) => {
+                const aNum = parseInt(a.pointNumber) || 0;
+                const bNum = parseInt(b.pointNumber) || 0;
+                return aNum - bNum;
+            });
+            
+            let totalDistance = 0;
+            for (let i = 0; i < sortedPoints.length - 1; i++) {
+                const point1 = sortedPoints[i];
+                const point2 = sortedPoints[i + 1];
+                totalDistance += calculateDistance(point1.lat, point1.lng, point2.lat, point2.lng);
+            }
+            
+            return totalDistance;
+        }
+
+
+
+
+
+        // Update project status list as table
+        function updateProjectStatusList() {
+            const tableBody = document.getElementById('project-table-body');
+            const mobileCards = document.getElementById('project-mobile-cards');
+            
+            tableBody.innerHTML = '';
+            mobileCards.innerHTML = '';
+
+            if (filteredProjects.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="border border-gray-300 px-4 py-8 text-center text-gray-500">ไม่มีข้อมูลโครงการ</td></tr>';
+                mobileCards.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีข้อมูลโครงการ</p>';
+                return;
+            }
+
+            // Group by project
+            const projectGroups = {};
+            filteredProjects.forEach(project => {
                 const surveyorName = project.surveyorName || 'ไม่ระบุผู้สำรวจ';
                 const projectName = project.projectName || 'ไม่ระบุโครงการ';
+                const key = `${surveyorName}|${projectName}`;
                 
-                if (!surveyorGroups[surveyorName]) {
-                    surveyorGroups[surveyorName] = {};
+                if (!projectGroups[key]) {
+                    projectGroups[key] = {
+                        surveyorName,
+                        projectName,
+                        points: []
+                    };
                 }
                 
-                if (!surveyorGroups[surveyorName][projectName]) {
-                    surveyorGroups[surveyorName][projectName] = [];
-                }
-                
-                surveyorGroups[surveyorName][projectName].push(project);
+                projectGroups[key].points.push(project);
             });
 
-            Object.keys(surveyorGroups).forEach(surveyorName => {
-                const projects = surveyorGroups[surveyorName];
-                const totalPoints = Object.values(projects).reduce((sum, projectPoints) => sum + projectPoints.length, 0);
-                const projectCount = Object.keys(projects).length;
+            let rowIndex = 1;
+            Object.keys(projectGroups).forEach(key => {
+                const group = projectGroups[key];
+                const totalDistance = calculateProjectDistance(group.points);
+                const firstProject = group.points[0];
+                const status = firstProject.status || 'ยังไม่เขียนผัง';
                 
-                // Create surveyor header
-                const surveyorItem = document.createElement('div');
-                surveyorItem.className = 'border border-gray-200 rounded-lg overflow-hidden';
+                // Desktop table row
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="border border-gray-300 px-4 py-3 text-sm">${rowIndex}</td>
+                    <td class="border border-gray-300 px-4 py-3 text-sm">${group.surveyorName}</td>
+                    <td class="border border-gray-300 px-4 py-3 text-sm">${group.projectName}</td>
+                    <td class="border border-gray-300 px-4 py-3 text-sm text-right">${totalDistance.toFixed(0)}</td>
+                    <td class="border border-gray-300 px-4 py-3 text-sm">
+                        <select onchange="updateProjectGroupStatus('${group.projectName}', this.value)" class="w-full px-2 py-1 border rounded text-xs">
+                            <option value="ยังไม่เขียนผัง" ${status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
+                            <option value="เขียนผังแล้ว" ${status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
+                        </select>
+                    </td>
+                `;
+                tableBody.appendChild(row);
                 
-                const surveyorHeader = document.createElement('div');
-                surveyorHeader.className = 'project-item flex items-center justify-between p-4 bg-blue-50 border-b';
-                surveyorHeader.onclick = () => toggleProjectDetails(surveyorName);
-                surveyorHeader.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        <i class="fas fa-user text-blue-600"></i>
-                        <div>
-                            <p class="font-semibold text-gray-800">${surveyorName}</p>
-                            <p class="text-sm text-gray-600">${projectCount} โครงการ, ${totalPoints} จุดสำรวจ</p>
+                // Mobile card
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-gray-200 rounded-lg p-4 shadow-sm';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-1">
+                                <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-bold">#${rowIndex}</span>
+                                <span class="text-sm font-medium text-gray-600">${group.surveyorName}</span>
+                            </div>
+                            <h4 class="font-semibold text-gray-800 mb-1">${group.projectName}</h4>
+                            <p class="text-sm text-gray-600">ระยะทาง: ${totalDistance.toFixed(0)} เมตร</p>
                         </div>
                     </div>
-                    <i class="fas fa-chevron-down text-gray-400 transform transition-transform" id="chevron-${surveyorName.replace(/\s+/g, '-')}"></i>
-                `;
-                
-                // Create project details container
-                const projectDetails = document.createElement('div');
-                projectDetails.className = 'project-details';
-                projectDetails.id = `details-${surveyorName.replace(/\s+/g, '-')}`;
-                
-                // Add projects for this surveyor
-                Object.keys(projects).forEach(projectName => {
-                    const projectPoints = projects[projectName];
-                    const firstProject = projectPoints[0];
-                    
-                    const projectItem = document.createElement('div');
-                    projectItem.className = 'surveyor-project-item flex items-center justify-between p-3 mx-4 my-2 rounded-lg';
-                    projectItem.innerHTML = `
-                        <div>
-                            <p class="font-medium text-gray-800">${projectName}</p>
-                            <p class="text-sm text-gray-600">${projectPoints.length} จุดสำรวจ</p>
-                        </div>
-                        <select onchange="updateProjectGroupStatus('${projectName}', this.value)" class="px-3 py-1 border rounded-lg text-sm">
-                            <option value="ยังไม่เขียนผัง" ${firstProject.status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
-                            <option value="เขียนผังแล้ว" ${firstProject.status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
+                    <div class="mt-3">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">สถานะ:</label>
+                        <select onchange="updateProjectGroupStatus('${group.projectName}', this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="ยังไม่เขียนผัง" ${status === 'ยังไม่เขียนผัง' ? 'selected' : ''}>ยังไม่เขียนผัง</option>
+                            <option value="เขียนผังแล้ว" ${status === 'เขียนผังแล้ว' ? 'selected' : ''}>เขียนผังแล้ว</option>
                         </select>
-                    `;
-                    projectDetails.appendChild(projectItem);
-                });
+                    </div>
+                `;
+                mobileCards.appendChild(card);
                 
-                surveyorItem.appendChild(surveyorHeader);
-                surveyorItem.appendChild(projectDetails);
-                statusList.appendChild(surveyorItem);
+                rowIndex++;
             });
         }
 
@@ -1203,33 +1411,7 @@
             downloadKML(kml, 'survey_all_points.kml');
         }
 
-        // Export project KML
-        function exportProjectKML() {
-            const selectedProject = document.getElementById('project-export-select').value;
-            
-            if (!selectedProject) {
-                Swal.fire({
-                    title: 'กรุณาเลือกโครงการ',
-                    text: 'กรุณาเลือกโครงการที่ต้องการ Export',
-                    icon: 'warning'
-                });
-                return;
-            }
 
-            const projectData = allProjects.filter(p => p.projectName === selectedProject);
-            
-            if (projectData.length === 0) {
-                Swal.fire({
-                    title: 'ไม่มีข้อมูล',
-                    text: 'ไม่มีข้อมูลในโครงการที่เลือก',
-                    icon: 'warning'
-                });
-                return;
-            }
-
-            const kml = generateKML(projectData, `โครงการ: ${selectedProject}`);
-            downloadKML(kml, `${selectedProject.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}.kml`);
-        }
 
         // Export KML
         function exportKML() {
@@ -1300,5 +1482,5 @@
             });
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98a3686ec7cea1c2',t:'MTc1OTczNTM0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ac4df6712687dd',t:'MTc1OTgyODYzNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
