@@ -594,6 +594,9 @@
                 <div class="font-bold text-blue-600" id="distance-text">-</div>
                 <div class="text-xs text-gray-600 mt-1">ระยะรวม</div>
                 <div class="font-bold text-green-600" id="total-distance-text">0 เมตร</div>
+                <button onclick="finishSurvey()" class="btn-success text-white px-3 py-2 rounded-lg text-xs font-medium mt-2 w-full hidden" id="save-btn-info">
+                    <i class="fas fa-save mr-1"></i>บันทึกข้อมูล
+                </button>
             </div>
             <button onclick="getCurrentLocation()" class="current-location-btn" title="ตำแหน่งปัจจุบัน">
                 <i class="fas fa-crosshairs"></i>
@@ -1001,6 +1004,7 @@
             document.getElementById('start-btn').classList.add('hidden');
             document.getElementById('finish-btn').classList.remove('hidden');
             document.getElementById('clear-btn').classList.remove('hidden');
+            document.getElementById('save-btn-info').classList.remove('hidden');
             document.getElementById('main-surveyor-select').disabled = true;
             document.getElementById('project-name-input').disabled = true;
             
@@ -1492,6 +1496,7 @@
             document.getElementById('start-btn').classList.remove('hidden');
             document.getElementById('finish-btn').classList.add('hidden');
             document.getElementById('clear-btn').classList.add('hidden');
+            document.getElementById('save-btn-info').classList.add('hidden');
             document.getElementById('main-surveyor-select').disabled = false;
             document.getElementById('project-name-input').disabled = false;
             document.getElementById('distance-text').textContent = '-';
@@ -1919,5 +1924,5 @@
             </p>
         </div>
     </footer>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ad370a267cf894',t:'MTc1OTgzODE4NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ad447e0219fd9e',t:'MTc1OTgzODczNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
