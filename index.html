@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบสำรวจเสาไฟฟ้า PEA</title>
+    <title>SURVEY PEA NPN</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -435,7 +435,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-lg font-bold text-gray-800">
                     <i class="fas fa-bolt text-blue-600 mr-2"></i>
-                    ระบบสำรวจเสาไฟฟ้า PEA
+                    SURVEY PEA NPN
                 </h1>
                 <div class="flex space-x-2">
                     <button onclick="showTab('dashboard')" class="nav-tab px-3 py-2 rounded-lg text-sm font-medium" id="tab-dashboard">
@@ -654,20 +654,22 @@
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">หมายเหตุ</label>
-                    <textarea id="notes" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="หมายเหตุเพิ่มเติม"></textarea>
+                    <textarea id="notes" rows="2" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="หมายเหตุเพิ่มเติม"></textarea>
                 </div>
             </div>
             
-            <div class="p-4 border-t flex flex-col space-y-2">
-                <button onclick="savePoint()" class="btn-primary text-white px-4 py-3 rounded-lg font-medium">
-                    <i class="fas fa-plus mr-2"></i>เพิ่มจุดสำรวจ
-                </button>
-                <button onclick="finishSurveyFromModal()" class="btn-success text-white px-4 py-3 rounded-lg font-medium">
-                    <i class="fas fa-check mr-2"></i>เสร็จสิ้นการสำรวจ
-                </button>
-                <button onclick="closeModal()" class="bg-gray-500 text-white px-4 py-3 rounded-lg font-medium">
-                    <i class="fas fa-times mr-2"></i>ยกเลิก
-                </button>
+            <div class="p-4 border-t">
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="savePoint()" class="btn-primary text-white px-2 py-2 rounded-lg text-xs font-medium">
+                        <i class="fas fa-plus mr-1"></i>เพิ่มจุด
+                    </button>
+                    <button onclick="finishSurveyFromModal()" class="btn-success text-white px-2 py-2 rounded-lg text-xs font-medium">
+                        <i class="fas fa-check mr-1"></i>เสร็จสิ้น
+                    </button>
+                    <button onclick="closeModal()" class="bg-gray-500 text-white px-2 py-2 rounded-lg text-xs font-medium">
+                        <i class="fas fa-times mr-1"></i>ยกเลิก
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1917,5 +1919,5 @@
             </p>
         </div>
     </footer>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ad2e5b35f8ff8f',t:'MTc1OTgzNzgyOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98ad370a267cf894',t:'MTc1OTgzODE4NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
